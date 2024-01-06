@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     // Init core object(s)
     Window m_window("CUDA Fluid Solver", glm::ivec2(utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT), OpenGLVersion::GL46);
     RenderConfig m_renderConfig;
-    ui::Menu m_menu;
+    ui::Menu m_menu(m_renderConfig);
 
     // Allocate CUDA buffer memory
     const uint2 fieldExtents    = { utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT };

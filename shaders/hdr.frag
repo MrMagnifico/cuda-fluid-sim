@@ -21,7 +21,7 @@ void main() {
     // Combine colors from fields textures
     vec3 hdrColor = vec3(0.0);
     if (drawDensities)  { hdrColor += texture(densitiesTex, bufferCoords).rgb; }
-    if (drawVelocities) { hdrColor += texture(densitiesTex, bufferCoords).rgb; }
+    if (drawVelocities) { hdrColor += texture(velocitiesTex, bufferCoords).rgb; }
 
     if (hdr) {
         // vec3 result = hdrColor / (hdrColor + vec3(1.0));     // Reinhard tone mapping
