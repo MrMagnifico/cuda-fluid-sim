@@ -8,9 +8,12 @@ DISABLE_WARNINGS_POP()
 #include <filesystem>
 
 namespace utils {
+    // CUDA parameters
+    const dim3 BLOCK_SIZE = { 4U, 8U, 1U }; // Number of threads per block
+
     // Viewport parameters
-    constexpr int32_t INITIAL_WIDTH     = 1920;
-    constexpr int32_t INITIAL_HEIGHT    = 1040;
+    constexpr int32_t INITIAL_WIDTH     = 1024;
+    constexpr int32_t INITIAL_HEIGHT    = 1024;
 
     // Resource directories 
     const std::filesystem::path SHADERS_DIR_PATH = SHADERS_DIR;
