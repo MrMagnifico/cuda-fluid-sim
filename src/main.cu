@@ -38,16 +38,21 @@ int main(int argc, char* argv[]) {
     CUDA_ERROR(cudaMalloc(&velocitiesPrev, fieldsSize));
     CUDA_ERROR(cudaMalloc(&sources, fieldsSize));
 
-    // Zero out previous value and source fields
+    // Zero out fields
+    CUDA_ERROR(cudaMemset(densities,        0, fieldsSize));
     CUDA_ERROR(cudaMemset(densitiesPrev,    0, fieldsSize));
+    CUDA_ERROR(cudaMemset(velocities,       0, fieldsSize));
     CUDA_ERROR(cudaMemset(velocitiesPrev,   0, fieldsSize));
     CUDA_ERROR(cudaMemset(sources,          0, fieldsSize));
 
     // Set sources
     const uint2 paddedfieldExtents = { utils::INITIAL_WIDTH + 2U, utils::INITIAL_HEIGHT + 2U };
-    set_source<<<1, 1>>>(sources, make_uint2(200, 200), make_float3(0.25f, 0.0f, 0.0f), paddedfieldExtents);
-    set_source<<<1, 1>>>(sources, make_uint2(700, 400), make_float3(0.0f, 0.25f, 0.0f), paddedfieldExtents);
-    set_source<<<1, 1>>>(sources, make_uint2(300, 800), make_float3(0.0f, 0.0f, 0.25f), paddedfieldExtents);
+    for (unsigned int i = 0U; i < 50U; i++) {
+        for (unsigned int j = 0U; j < 50U; j++) {
+            set_source<<<1, 1>>>(sources, make_uint2(300U + i, 300U + j), make_float3(0.5f, 0.0f, 0.0f), paddedfieldExtents);
+        }
+    }
+    CUDA_ERROR(cudaDeviceSynchronize());
 
     // Determine grid dimensions needed for workload distribution
     dim3 gridDims((paddedfieldExtents.x / utils::BLOCK_SIZE.x) + 1U, (paddedfieldExtents.y / utils::BLOCK_SIZE.y) + 1U);
@@ -84,6 +89,7 @@ int main(int argc, char* argv[]) {
     while (!m_window.shouldClose()) {
         // Main simulation
         add_sources<<<gridDims, utils::BLOCK_SIZE>>>(densities, sources, m_renderConfig.timeStep, paddedfieldExtents.x * paddedfieldExtents.y);
+        std::swap(densities, densitiesPrev);
         diffuse<<<gridDims, utils::BLOCK_SIZE>>>(densitiesPrev, densities, fieldExtents, paddedfieldExtents.x * paddedfieldExtents.y,
                                                  m_renderConfig.timeStep, m_renderConfig.diffusionRate, m_renderConfig.diffusionSimSteps);
 
@@ -92,13 +98,11 @@ int main(int argc, char* argv[]) {
         cudaSurfaceObject_t velocitiesSurface   = utils::createSurfaceFromTextureResource(velocitiesResource);
         copyFieldToTexture<<<gridDims, utils::BLOCK_SIZE>>>(densities, densitiesSurface, fieldExtents);
         copyFieldToTexture<<<gridDims, utils::BLOCK_SIZE>>>(velocities, velocitiesSurface, fieldExtents);
+        CUDA_ERROR(cudaDeviceSynchronize()); // Ensure that copying is over before terminating resource handles
         CUDA_ERROR(cudaDestroySurfaceObject(densitiesSurface));
         CUDA_ERROR(cudaDestroySurfaceObject(velocitiesSurface));
         CUDA_ERROR(cudaGraphicsUnmapResources(1, &densitiesResource));
         CUDA_ERROR(cudaGraphicsUnmapResources(1, &velocitiesResource));
-
-        // Ensure simulation is done and field values have been copied to OpenGL textures
-        CUDA_ERROR(cudaDeviceSynchronize());
 
         // Clear the screen
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -123,6 +127,7 @@ int main(int argc, char* argv[]) {
         glUniform1f(5, m_renderConfig.exposure);
         glUniform1f(6, m_renderConfig.gamma);
         utils::renderQuad();
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Draw UI
         m_menu.draw();
