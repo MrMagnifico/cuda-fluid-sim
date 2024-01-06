@@ -355,6 +355,11 @@ void Window::setMouseCapture(bool capture)
     glfwPollEvents();
 }
 
+GLFWwindow* Window::getGlfwWindow() const
+{
+    return m_pWindow;
+}
+
 glm::ivec2 Window::getWindowSize() const
 {
     return m_windowSize;

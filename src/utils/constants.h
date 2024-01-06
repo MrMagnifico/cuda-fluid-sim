@@ -5,7 +5,9 @@
 DISABLE_WARNINGS_PUSH()
 #include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
+
 #include <filesystem>
+#include <string>
 
 namespace utils {
     // CUDA parameters
@@ -14,6 +16,9 @@ namespace utils {
     // Viewport parameters
     constexpr int32_t INITIAL_WIDTH     = 1920;
     constexpr int32_t INITIAL_HEIGHT    = 1040;
+
+    // Shitty strings.xml
+    constexpr std::string_view WINDOW_TITLE = "CUDA Fluid Solver";
 
     // Resource directories 
     const std::filesystem::path SHADERS_DIR_PATH = SHADERS_DIR;

@@ -25,7 +25,7 @@ DISABLE_WARNINGS_POP()
 
 int main(int argc, char* argv[]) {
     // Init core object(s)
-    Window m_window("CUDA Fluid Solver", glm::ivec2(utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT), OpenGLVersion::GL46);
+    Window m_window(utils::WINDOW_TITLE, glm::ivec2(utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT), OpenGLVersion::GL46);
     RenderConfig m_renderConfig;
     ui::Menu m_menu(m_renderConfig);
 
@@ -90,6 +90,8 @@ int main(int argc, char* argv[]) {
 
     // Main loop
     while (!m_window.shouldClose()) {
+        double frameStart = glfwGetTime();
+
         // Main simulation
         add_sources<<<gridDims, utils::BLOCK_SIZE>>>(densities, sources, m_renderConfig.timeStep, paddedfieldExtents.x * paddedfieldExtents.y);
         std::swap(densities, densitiesPrev);
@@ -137,6 +139,12 @@ int main(int argc, char* argv[]) {
 
         // Processes input and swaps the window buffer
         m_window.swapBuffers();
+
+        // Display FPS in window title
+        double frameEnd     = glfwGetTime();
+        double frameTime    = frameEnd - frameStart; 
+        std::string fpsStr  = std::format("{} - {:.1f}FPS", utils::WINDOW_TITLE, 1.0 / frameTime);
+        glfwSetWindowTitle(m_window.getGlfwWindow(), fpsStr.c_str());
     }
 
     return EXIT_SUCCESS;
