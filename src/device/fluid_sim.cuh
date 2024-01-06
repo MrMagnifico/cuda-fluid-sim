@@ -1,6 +1,11 @@
 #ifndef _FLUID_SIM_CUH_
 #define _FLUID_SIM_CUH_
 
+#include <framework/disable_all_warnings.h>
+DISABLE_WARNINGS_PUSH()
+#include <glm/vec3.hpp>
+DISABLE_WARNINGS_POP()
+
 enum BoundaryStrategy { Conserve = 0, ReverseVertical, ReverseHorizontal };
 
 /**
@@ -11,7 +16,7 @@ enum BoundaryStrategy { Conserve = 0, ReverseVertical, ReverseHorizontal };
  * @param time_step Magnitude of simulation step
  * @param num_cells Total number of cells in density field (INCLUDING ghost cells)
 */
-__global__ void add_sources(float3* densities, float3* sources, float time_step, unsigned int num_cells);
+__global__ void add_sources(glm::vec3* densities, glm::vec3* sources, float time_step, unsigned int num_cells);
 
 /**
  * Compute diffusion of densities across field of cells
@@ -25,10 +30,10 @@ __global__ void add_sources(float3* densities, float3* sources, float time_step,
  * @param diffusion_rate Rate at which density diffuses through cells
  * @param sim_steps Number of Gauss-Seidel relaxation steps to use for iteration 
 */
-__global__ void diffuse(float3* old_field, float3* new_field, uint2 field_extents, unsigned int num_cells,
+__global__ void diffuse(glm::vec3* old_field, glm::vec3* new_field, uint2 field_extents, unsigned int num_cells,
                         float time_step, float diffusion_rate, unsigned int sim_steps);
 
-__device__ void handle_boundary(float3* field, uint2 field_extents, BoundaryStrategy bs,
+__device__ void handle_boundary(glm::vec3* field, uint2 field_extents, BoundaryStrategy bs,
                                 unsigned int tidX, unsigned int tidY, unsigned int offset,
                                 unsigned int leftIdx, unsigned int rightIdx, unsigned int upIdx, unsigned int downIdx);
 

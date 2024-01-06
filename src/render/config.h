@@ -11,8 +11,8 @@ struct RenderConfig {
     bool renderVelocities   = false;
 
     // Simulation parameters
-    float timeStep                = 1e-2f;
-    float diffusionRate           = 1e-1f;
+    float timeStep                = 1e-1f;
+    float diffusionRate           = 1e1f;
     uint32_t diffusionSimSteps    = 32U;
     
     // HDR tonemapping and gamma correction

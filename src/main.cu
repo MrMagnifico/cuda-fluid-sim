@@ -2,6 +2,7 @@
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/vec3.hpp>
 #include <imgui/imgui.h>
 DISABLE_WARNINGS_POP()
 
@@ -30,8 +31,8 @@ int main(int argc, char* argv[]) {
 
     // Allocate CUDA buffer memory
     const uint2 fieldExtents    = { utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT };
-    const size_t fieldsSize     = (utils::INITIAL_WIDTH + 2UL) * (utils::INITIAL_HEIGHT + 2UL) * sizeof(float3); // Account for ghost cells
-    float3 *densities, *densitiesPrev, *velocities, *velocitiesPrev, *sources;
+    const size_t fieldsSize     = (utils::INITIAL_WIDTH + 2UL) * (utils::INITIAL_HEIGHT + 2UL) * sizeof(glm::vec3); // Account for ghost cells
+    glm::vec3 *densities, *densitiesPrev, *velocities, *velocitiesPrev, *sources;
     CUDA_ERROR(cudaMalloc(&densities, fieldsSize));
     CUDA_ERROR(cudaMalloc(&densitiesPrev, fieldsSize));
     CUDA_ERROR(cudaMalloc(&velocities, fieldsSize));
@@ -47,9 +48,11 @@ int main(int argc, char* argv[]) {
 
     // Set sources
     const uint2 paddedfieldExtents = { utils::INITIAL_WIDTH + 2U, utils::INITIAL_HEIGHT + 2U };
-    for (unsigned int i = 0U; i < 50U; i++) {
-        for (unsigned int j = 0U; j < 50U; j++) {
-            set_source<<<1, 1>>>(sources, make_uint2(300U + i, 300U + j), make_float3(0.5f, 0.0f, 0.0f), paddedfieldExtents);
+    for (unsigned int i = 0U; i < 10U; i++) {
+        for (unsigned int j = 0U; j < 10U; j++) {
+            set_source<<<1, 1>>>(sources, make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f), paddedfieldExtents);
+            set_source<<<1, 1>>>(sources, make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f), paddedfieldExtents);
+            set_source<<<1, 1>>>(sources, make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f), paddedfieldExtents);
         }
     }
     CUDA_ERROR(cudaDeviceSynchronize());
