@@ -6,6 +6,7 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
 
-__global__ void copyFieldToTexture(glm::vec3* field, cudaSurfaceObject_t texture_surface, uint2 texture_extents);
+template<typename T>
+__global__ void copyFieldToTexture(T* field, cudaSurfaceObject_t texture_surface, uint2 texture_extents);
 
 #endif

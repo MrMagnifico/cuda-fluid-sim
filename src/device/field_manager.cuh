@@ -4,6 +4,7 @@
 #include <framework/disable_all_warnings.h>
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
 
@@ -12,11 +13,13 @@ DISABLE_WARNINGS_POP()
 class FieldManager {
     public:
         FieldManager(const RenderConfig& renderConfig, const uint2 fieldExtents,
-                     const GLuint sourcesTex, const GLuint densitiesTex);
+                     const GLuint sourcesDensityTex, const GLuint densitiesTex,
+                     const GLuint sourcesVelocityTex, const GLuint velocitiesTex);
         ~FieldManager();
 
         void copyFieldsToTextures();
-        void setSource(uint2 coords, glm::vec3 val);
+        void setSourceDensity(uint2 coords, glm::vec3 val);
+        void setSourceVelocity(uint2 coords, glm::vec2 val);
         void simulate();
 
     private:
@@ -24,14 +27,15 @@ class FieldManager {
 
         uint2 m_fieldExtents;
         uint2 m_paddedfieldExtents;
-        size_t m_fieldsSize;
-        size_t m_sharedMemSize;
         dim3 m_gridDims;
 
         // TODO: Expand to other fields
-        cudaGraphicsResource_t m_densitiesResource, m_sourcesResource;
-        glm::vec3 *m_sources,
-                  *m_densities, *m_densitiesPrev;
+        cudaGraphicsResource_t m_densitiesResource, m_sourcesDensityResource, m_velocitiesResource, m_sourcesVelocityResource;
+        glm::vec3 *m_densitySources, *m_densities, *m_densitiesPrev;
+        glm::vec2 *m_velocitySources, *m_velocities, *m_velocitiesPrev;
+
+        void densityStep();
+        void velocityStep();
 };
 
 

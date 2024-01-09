@@ -6,6 +6,7 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
 
-__global__ void set_source(glm::vec3* sources, uint2 coords, glm::vec3 val, uint2 field_extents);
+template<typename T>
+__global__ void set_source(T* sources, uint2 coords, T val, uint2 field_extents);
 
 #endif

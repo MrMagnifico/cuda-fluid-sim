@@ -26,14 +26,15 @@ int main(int argc, char* argv[]) {
     ui::Menu m_menu(m_renderConfig);
     FieldRenderer m_fieldRenderer(m_renderConfig, fieldExtents.x, fieldExtents.y);
     FieldManager m_fieldManager(m_renderConfig, fieldExtents,
-                                m_fieldRenderer.getSourcesTex(), m_fieldRenderer.getDensitiesTex());
+                                m_fieldRenderer.getSourcesDensityTex(),     m_fieldRenderer.getDensitiesTex(),
+                                m_fieldRenderer.getSourcesVelocityTex(),    m_fieldRenderer.getVelocitiesTex());
     
     // Set sources
     for (unsigned int i = 0U; i < 50U; i++) {
         for (unsigned int j = 0U; j < 50U; j++) {
-            m_fieldManager.setSource(make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f));
-            m_fieldManager.setSource(make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f));
-            m_fieldManager.setSource(make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f));
+            m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f));
         }
     }
     CUDA_ERROR(cudaDeviceSynchronize());

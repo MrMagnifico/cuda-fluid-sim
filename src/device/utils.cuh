@@ -2,6 +2,13 @@
 #define _UTILS_CUH_
 
 
+#include <framework/disable_all_warnings.h>
+DISABLE_WARNINGS_PUSH()
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+DISABLE_WARNINGS_POP()
+
+
 // Indicates if a cell is in the interior of a 2D block or on one of the edges/corners
 enum CellLocationType2d { Interior = 0,
                           Top, Bottom, Left, Right,
@@ -23,5 +30,8 @@ __device__ CellLocationType2d determineLocationType() {
     return Interior;
 }
 
+__device__ float4 toRGBA(glm::vec2 val) { return make_float4(val.x, val.y, 0.0f, 1.0f); }
+
+__device__ float4 toRGBA(glm::vec3 val) { return make_float4(val.x, val.y, val.z, 1.0f); }
 
 #endif

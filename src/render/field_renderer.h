@@ -19,15 +19,16 @@ class FieldRenderer {
 
         void render();
 
-        const GLuint getSourcesTex() const      { return m_sourcesTex; }
-        const GLuint getDensitiesTex() const    { return m_densitiesTex; }
+        GLuint getSourcesDensityTex() const     { return m_sourcesDensityTex; }
+        GLuint getDensitiesTex() const          { return m_densitiesTex; }
+        GLuint getSourcesVelocityTex() const    { return m_sourcesVelocityTex; }
+        GLuint getVelocitiesTex() const         { return m_velocitiesTex; }
 
     private:
         const RenderConfig& m_renderConfig;
 
-        // TODO: Expand to other fields
         glm::uvec2 m_fieldDims;
-        GLuint m_sourcesTex, m_densitiesTex;
+        GLuint m_sourcesDensityTex, m_densitiesTex, m_sourcesVelocityTex, m_velocitiesTex;
         Shader m_quadHdr;
 
         void initShaderProgram();
