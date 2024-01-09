@@ -11,7 +11,9 @@ DISABLE_WARNINGS_POP()
 
 namespace utils {
     // CUDA parameters
+    #ifdef __cuda_cuda_h__
     const dim3 BLOCK_SIZE = { 4U, 8U, 1U }; // Number of threads per block
+    #endif
 
     // Viewport parameters
     constexpr int32_t INITIAL_WIDTH     = 1920;

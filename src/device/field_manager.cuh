@@ -3,6 +3,7 @@
 
 #include <framework/disable_all_warnings.h>
 DISABLE_WARNINGS_PUSH()
+#include <glad/glad.h>
 #include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
 
@@ -10,10 +11,11 @@ DISABLE_WARNINGS_POP()
 
 class FieldManager {
     public:
-        FieldManager(const uint2 fieldExtents, const RenderConfig& renderConfig);
+        FieldManager(const RenderConfig& renderConfig, const uint2 fieldExtents,
+                     const GLuint sourcesTex, const GLuint densitiesTex);
         ~FieldManager();
 
-        void copyFieldsToTexture(cudaSurfaceObject_t sourcesSurface, cudaSurfaceObject_t densitiesSurface);
+        void copyFieldsToTextures();
         void setSource(uint2 coords, glm::vec3 val);
         void simulate();
 
@@ -27,6 +29,7 @@ class FieldManager {
         dim3 m_gridDims;
 
         // TODO: Expand to other fields
+        cudaGraphicsResource_t m_densitiesResource, m_sourcesResource;
         glm::vec3 *m_sources,
                   *m_densities, *m_densitiesPrev;
 };
