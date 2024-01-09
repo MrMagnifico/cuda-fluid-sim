@@ -8,7 +8,7 @@
 struct RenderConfig {
     // What to render
     bool renderDensities    = true;
-    bool renderVelocities   = false;
+    bool renderSources      = false;
 
     // Simulation parameters
     float timeStep                = 1e-1f;

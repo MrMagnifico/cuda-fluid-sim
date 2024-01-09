@@ -31,25 +31,22 @@ int main(int argc, char* argv[]) {
 
     // Allocate CUDA buffer memory
     const uint2 fieldExtents    = { utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT };
-    const size_t fieldsSize     = (utils::INITIAL_WIDTH + 2UL) * (utils::INITIAL_HEIGHT + 2UL) * sizeof(glm::vec3); // Account for ghost cells
-    glm::vec3 *densities, *densitiesPrev, *velocities, *velocitiesPrev, *sources;
+    const size_t fieldsSize     = (utils::INITIAL_WIDTH + 2UL)  * (utils::INITIAL_HEIGHT + 2UL) * sizeof(glm::vec3);        // Account for boundaries
+    const size_t sharedMemSize  = (utils::BLOCK_SIZE.x + 2UL)   * (utils::BLOCK_SIZE.y + 2UL)   * sizeof(glm::vec3) * 2UL;  // Account for ghost cells and the fact that we store TWO fields (old and new)
+    glm::vec3 *densities, *densitiesPrev, *sources;
     CUDA_ERROR(cudaMalloc(&densities, fieldsSize));
     CUDA_ERROR(cudaMalloc(&densitiesPrev, fieldsSize));
-    CUDA_ERROR(cudaMalloc(&velocities, fieldsSize));
-    CUDA_ERROR(cudaMalloc(&velocitiesPrev, fieldsSize));
     CUDA_ERROR(cudaMalloc(&sources, fieldsSize));
 
     // Zero out fields
     CUDA_ERROR(cudaMemset(densities,        0, fieldsSize));
     CUDA_ERROR(cudaMemset(densitiesPrev,    0, fieldsSize));
-    CUDA_ERROR(cudaMemset(velocities,       0, fieldsSize));
-    CUDA_ERROR(cudaMemset(velocitiesPrev,   0, fieldsSize));
     CUDA_ERROR(cudaMemset(sources,          0, fieldsSize));
 
     // Set sources
     const uint2 paddedfieldExtents = { utils::INITIAL_WIDTH + 2U, utils::INITIAL_HEIGHT + 2U };
-    for (unsigned int i = 0U; i < 10U; i++) {
-        for (unsigned int j = 0U; j < 10U; j++) {
+    for (unsigned int i = 0U; i < 50U; i++) {
+        for (unsigned int j = 0U; j < 50U; j++) {
             set_source<<<1, 1>>>(sources, make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f), paddedfieldExtents);
             set_source<<<1, 1>>>(sources, make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f), paddedfieldExtents);
             set_source<<<1, 1>>>(sources, make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f), paddedfieldExtents);
@@ -67,20 +64,20 @@ int main(int argc, char* argv[]) {
     Shader quadHdr = quadHdrBuilder.build();
 
     // Init OpenGL textures and bind them to CUDA resources
-    GLuint densitiesTex, velocitiesTex;
-    cudaGraphicsResource_t densitiesResource, velocitiesResource;
+    GLuint densitiesTex, sourcesTex;
+    cudaGraphicsResource_t densitiesResource, sourcesResource;
     glCreateTextures(GL_TEXTURE_2D, 1, &densitiesTex);
     glTextureStorage2D(densitiesTex, 1, GL_RGBA32F, fieldExtents.x, fieldExtents.y);
     glTextureParameteri(densitiesTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTextureParameteri(densitiesTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, densitiesTex);
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&densitiesResource, densitiesTex, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
-    glCreateTextures(GL_TEXTURE_2D, 1, &velocitiesTex);
-    glTextureStorage2D(velocitiesTex, 1, GL_RGBA32F, fieldExtents.x, fieldExtents.y);
-    glTextureParameteri(velocitiesTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(velocitiesTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, velocitiesTex);
-    CUDA_ERROR(cudaGraphicsGLRegisterImage(&velocitiesResource, velocitiesTex, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
+    glCreateTextures(GL_TEXTURE_2D, 1, &sourcesTex);
+    glTextureStorage2D(sourcesTex, 1, GL_RGBA32F, fieldExtents.x, fieldExtents.y);
+    glTextureParameteri(sourcesTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(sourcesTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, sourcesTex);
+    CUDA_ERROR(cudaGraphicsGLRegisterImage(&sourcesResource, sourcesTex, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Register UI callbacks
@@ -95,19 +92,19 @@ int main(int argc, char* argv[]) {
         // Main simulation
         add_sources<<<gridDims, utils::BLOCK_SIZE>>>(densities, sources, m_renderConfig.timeStep, paddedfieldExtents.x * paddedfieldExtents.y);
         std::swap(densities, densitiesPrev);
-        diffuse<<<gridDims, utils::BLOCK_SIZE>>>(densitiesPrev, densities, fieldExtents, paddedfieldExtents.x * paddedfieldExtents.y,
-                                                 m_renderConfig.timeStep, m_renderConfig.diffusionRate, m_renderConfig.diffusionSimSteps);
+        diffuse<<<gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(densitiesPrev, densities, fieldExtents, paddedfieldExtents.x * paddedfieldExtents.y,
+                                                                m_renderConfig.timeStep, m_renderConfig.diffusionRate, m_renderConfig.diffusionSimSteps);
 
         // Write fields to OpenGL textures
         cudaSurfaceObject_t densitiesSurface    = utils::createSurfaceFromTextureResource(densitiesResource);
-        cudaSurfaceObject_t velocitiesSurface   = utils::createSurfaceFromTextureResource(velocitiesResource);
+        cudaSurfaceObject_t sourcesSurface      = utils::createSurfaceFromTextureResource(sourcesResource);
         copyFieldToTexture<<<gridDims, utils::BLOCK_SIZE>>>(densities, densitiesSurface, fieldExtents);
-        copyFieldToTexture<<<gridDims, utils::BLOCK_SIZE>>>(velocities, velocitiesSurface, fieldExtents);
+        copyFieldToTexture<<<gridDims, utils::BLOCK_SIZE>>>(sources, sourcesSurface, fieldExtents);
         CUDA_ERROR(cudaDeviceSynchronize()); // Ensure that copying is over before terminating resource handles
         CUDA_ERROR(cudaDestroySurfaceObject(densitiesSurface));
-        CUDA_ERROR(cudaDestroySurfaceObject(velocitiesSurface));
+        CUDA_ERROR(cudaDestroySurfaceObject(sourcesSurface));
         CUDA_ERROR(cudaGraphicsUnmapResources(1, &densitiesResource));
-        CUDA_ERROR(cudaGraphicsUnmapResources(1, &velocitiesResource));
+        CUDA_ERROR(cudaGraphicsUnmapResources(1, &sourcesResource));
 
         // Clear the screen
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -125,9 +122,9 @@ int main(int argc, char* argv[]) {
         glUniform1i(0, 0);
         glUniform1i(1, m_renderConfig.renderDensities);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, velocitiesTex);
+        glBindTexture(GL_TEXTURE_2D, sourcesTex);
         glUniform1i(2, 1);
-        glUniform1i(3, m_renderConfig.renderVelocities);
+        glUniform1i(3, m_renderConfig.renderSources);
         glUniform1i(4, m_renderConfig.enableHdr);
         glUniform1f(5, m_renderConfig.exposure);
         glUniform1f(6, m_renderConfig.gamma);

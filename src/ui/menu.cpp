@@ -51,7 +51,7 @@ void ui::Menu::drawRenderTab() {
 
 void ui::Menu::drawFieldDrawControls() {
     ImGui::Checkbox("Densities", &m_renderConfig.renderDensities);
-    ImGui::Checkbox("Velocities", &m_renderConfig.renderVelocities);
+    ImGui::Checkbox("Sources", &m_renderConfig.renderSources);
 }
 
 void ui::Menu::drawHdrControls() {

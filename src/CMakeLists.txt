@@ -4,4 +4,6 @@ target_sources(FluidLib
         "${CMAKE_CURRENT_LIST_DIR}/device/gl_interop.cu"
         "${CMAKE_CURRENT_LIST_DIR}/device/sources.cu"
 
-        "${CMAKE_CURRENT_LIST_DIR}/ui/menu.cpp")
+        "${CMAKE_CURRENT_LIST_DIR}/ui/menu.cpp"
+        
+        "${CMAKE_CURRENT_LIST_DIR}/utils/cuda_utils.cu")
