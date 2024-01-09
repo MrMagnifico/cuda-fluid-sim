@@ -11,7 +11,7 @@ DISABLE_WARNINGS_POP()
 
 namespace utils {
     // CUDA parameters
-    #ifdef __cuda_cuda_h__
+    #ifdef __CUDACC__
     const dim3 BLOCK_SIZE = { 4U, 8U, 1U }; // Number of threads per block
     #endif
 
