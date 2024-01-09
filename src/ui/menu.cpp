@@ -26,7 +26,7 @@ void ui::Menu::draw() {
 }
 
 void ui::Menu::drawSimControlsTab() {
-    if (ImGui::BeginTabItem("Simulation Controls")) {
+    if (ImGui::BeginTabItem("Simulation")) {
         ImGui::InputFloat("Time step", &m_renderConfig.timeStep, 0.01f, 10.0f, "%.2f");
         ImGui::InputFloat("Diffusion rate", &m_renderConfig.diffusionRate, 0.01f, 10.0f, "%.2f");
         ImGui::SliderInt("Diffusion simulation steps", reinterpret_cast<int*>(&m_renderConfig.diffusionSimSteps), 1, 128);

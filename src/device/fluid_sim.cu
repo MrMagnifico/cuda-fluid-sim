@@ -106,7 +106,9 @@ __global__ void diffuse(glm::vec3* old_field, glm::vec3* new_field, uint2 field_
                                                       gridData[upOffsetNew] +
                                                       gridData[downOffsetNew])) / relaxationDenom;
         } else if (validThread) {
-            // TODO: Reimplement boundary handling with shared memory
+            handle_boundary(gridData, field_extents, Conserve,
+                                   globalIdX, globalIdY,
+                                   threadOffsetNew, leftOffsetNew, rightOffsetNew, upOffsetNew, downOffsetNew);
         }
 
         // Ensure simulation step is fully carried out
@@ -114,13 +116,12 @@ __global__ void diffuse(glm::vec3* old_field, glm::vec3* new_field, uint2 field_
     }
 
     // Write new field value to global memory
-    // TODO: Replace with actual newly computed value instead of plonking old value
     if (validThread) { new_field[globalOffset] = gridData[threadOffsetNew]; }
 }
 
-__device__ void handle_boundary_global(glm::vec3* field, uint2 field_extents, BoundaryStrategy bs,
-                                       unsigned int tidX, unsigned int tidY, unsigned int offset,
-                                       unsigned int leftIdx, unsigned int rightIdx, unsigned int upIdx, unsigned int downIdx) {
+__device__ void handle_boundary(glm::vec3* field, uint2 field_extents, BoundaryStrategy bs,
+                                unsigned int tidX, unsigned int tidY, unsigned int offset,
+                                unsigned int leftIdx, unsigned int rightIdx, unsigned int upIdx, unsigned int downIdx) {
     // Corners are average of ghost cell neighbours
     if (tidX == 0U && tidY == 0U)                                              { field[offset] = (0.5f * field[rightIdx]) + (0.5f * field[downIdx]); }  // Top-left    
     else if (tidX == (field_extents.x + 1U) && tidY == 0U)                     { field[offset] = (0.5f * field[leftIdx]) + (0.5f * field[downIdx]); }   // Top-right

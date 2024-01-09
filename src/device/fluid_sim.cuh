@@ -37,21 +37,23 @@ __global__ void diffuse(glm::vec3* old_field, glm::vec3* new_field, uint2 field_
 
 
 /**
- * Handle the boundaries of a field in global memory
+ * Handle the boundaries of a field. Can handle both global and shared memory fields
+ * by passing offset and axial neighbour indices corresponding to shared memory.
+ * 
  * @param field Field to be operated on
  * @param field_extents Number of non-ghost cells in each axis of the fields
  * @param bs Strategy for handling boundaries (See BoundaryStrategy)
  * @param tidX Global x-axis coordinate of thread in grid
  * @param tidY Global y-axis coordinate of thread in grid
- * @param offset Index of thread's field cell in global memory
- * @param leftIdx Index of thread's left neighbour's cell in global memory
- * @param rightIdx Index of thread's right neighbour's cell in global memory
- * @param upIdx Index of thread's top neighbour's cell in global memory
- * @param downIdx Index of thread's bottom neighbour's cell in global memory
+ * @param offset Index of thread's field cell
+ * @param leftIdx Index of thread's left neighbour's cell
+ * @param rightIdx Index of thread's right neighbour's cell
+ * @param upIdx Index of thread's top neighbour's cell
+ * @param downIdx Index of thread's bottom neighbour's cell
 */
-__device__ void handle_boundary_global(glm::vec3* field, uint2 field_extents, BoundaryStrategy bs,
-                                       unsigned int tidX, unsigned int tidY, unsigned int offset,
-                                       unsigned int leftIdx, unsigned int rightIdx, unsigned int upIdx, unsigned int downIdx);
+__device__ void handle_boundary(glm::vec3* field, uint2 field_extents, BoundaryStrategy bs,
+                                unsigned int tidX, unsigned int tidY, unsigned int offset,
+                                unsigned int leftIdx, unsigned int rightIdx, unsigned int upIdx, unsigned int downIdx);
 
 
 #endif
