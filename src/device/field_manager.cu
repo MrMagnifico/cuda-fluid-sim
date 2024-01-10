@@ -42,17 +42,6 @@ FieldManager::FieldManager(const RenderConfig& renderConfig, const uint2 fieldEx
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_velocitiesResource,       velocitiesTex,      GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
 }
 
-FieldManager::~FieldManager() {
-    std::array<glm::vec3**, utils::FIELDS_PER_TYPE> fieldsDensity   = { &m_densitySources, &m_densities, &m_densitiesPrev };
-    std::array<glm::vec2**, utils::FIELDS_PER_TYPE> fieldsVelocity  = { &m_velocitySources, &m_velocities, &m_velocitiesPrev };
-    for (size_t fieldIdx = 0UL; fieldIdx < utils::FIELDS_PER_TYPE; fieldIdx++) {
-        auto densityField   = fieldsDensity[fieldIdx];
-        auto velocityField  = fieldsVelocity[fieldIdx];
-        CUDA_ERROR(cudaFree(densityField));
-        CUDA_ERROR(cudaFree(velocityField));
-    }
-}
-
 void FieldManager::copyFieldsToTextures() {
     cudaSurfaceObject_t sourcesDensitySurface   = utils::createSurfaceFromTextureResource(m_sourcesDensityResource);
     cudaSurfaceObject_t densitiesSurface        = utils::createSurfaceFromTextureResource(m_densitiesResource);

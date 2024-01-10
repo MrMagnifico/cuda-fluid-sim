@@ -15,7 +15,6 @@ class FieldManager {
         FieldManager(const RenderConfig& renderConfig, const uint2 fieldExtents,
                      const GLuint sourcesDensityTex, const GLuint densitiesTex,
                      const GLuint sourcesVelocityTex, const GLuint velocitiesTex);
-        ~FieldManager();
 
         void copyFieldsToTextures();
         void setSourceDensity(uint2 coords, glm::vec3 val);
