@@ -9,7 +9,7 @@ __global__ void copyFieldToTexture(T* field, cudaSurfaceObject_t texture_surface
     if (tidX < texture_extents.x && tidY < texture_extents.y) { 
         unsigned int surfaceX   = tidX + 1U;
         unsigned int surfaceY   = tidY + 1U;
-        unsigned int offset     = surfaceX + surfaceY * blockDim.x * gridDim.x;
+        unsigned int offset     = surfaceX + surfaceY * (texture_extents.x + 2U);
         T value                 = field[offset];
 
         // Use float4 as the expected texture format is GL_RGBA32F

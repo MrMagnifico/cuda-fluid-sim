@@ -19,11 +19,12 @@ __device__ T* shared_memory_proxy() {
  * 
  * @param densities Field of densities
  * @param sources Field of density-producing sources. Each entry represents how much density is produced for each time step
+ * @param field_extents Number of non-ghost cells in each axis of the fields
  * @param num_cells Total number of cells in density field (INCLUDING ghost cells)
  * @param sim_params Simulation parameters
 */
 template<typename T>
-__global__ void add_sources(T* densities, T* sources, unsigned int num_cells, SimulationParams sim_params);
+__global__ void add_sources(T* densities, T* sources, uint2 field_extents, unsigned int num_cells, SimulationParams sim_params);
 
 /**
  * Compute diffusion of densities across field of cells

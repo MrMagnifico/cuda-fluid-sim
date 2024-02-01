@@ -20,7 +20,7 @@ namespace utils {
     constexpr size_t NUM_TEXTURES = 4UL; // Total number of OpenGL textures being managed
 
     // Viewport parameters
-    constexpr int32_t INITIAL_WIDTH     = 1920;
+    constexpr int32_t INITIAL_WIDTH     = 1918;
     constexpr int32_t INITIAL_HEIGHT    = 1040;
 
     // Shitty strings.xml
