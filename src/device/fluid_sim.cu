@@ -126,8 +126,8 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
     if (validThread) { new_field[globalOffset] = gridData[threadOffsetNew]; }
 }
 
-template<typename FieldT, typename FieldCudaT, typename VelocityT>
-__global__ void advect(cudaTextureObject_t old_field, FieldT* new_field, VelocityT* velocity_field,
+template<typename FieldT, typename VelocityT>
+__global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field,
                        uint2 field_extents, unsigned int num_cells,
                        BoundaryStrategy bs, SimulationParams sim_params) {
     // Global thread indexing (current thread and axial neigbhours)
@@ -146,12 +146,23 @@ __global__ void advect(cudaTextureObject_t old_field, FieldT* new_field, Velocit
     
     if (handlingInterior) {
         // Trace backwards according to velocity fields to find coordinates whose density ends up in the cell managed by this 
-        VelocityT velocity      = velocity_field[globalOffset];
-        glm::uvec2 backTrace    = glm::uvec2(globalIdX - (timeStepAxial.x * velocity.x),
-                                             globalIdY - (timeStepAxial.y * velocity.y));
+        VelocityT velocity  = velocity_field[globalOffset];
+        glm::vec2 backTrace = glm::vec2(globalIdX - (timeStepAxial.x * velocity.x),
+                                        globalIdY - (timeStepAxial.y * velocity.y));
         
         // Bilinear interpolation of cell values
-        new_field[globalOffset] = toGLM(tex2D<float4>(old_field, globalIdX, globalIdY));
+        // I tried texture samplers, man. They made my squares fly away, man
+        glm::uvec2 topLeft              = glm::uvec2(backTrace);
+        glm::uvec2 bottomRight          = glm::uvec2(backTrace + 1.0f);
+        float rightProportion           = backTrace.x - topLeft.x;
+        float downProportion            = backTrace.y - topLeft.y;
+        unsigned int topLeftOffset      = topLeft.x     +   topLeft.y * (field_extents.x + 2U);
+        unsigned int topRightOffset     = bottomRight.x +   topLeft.y * (field_extents.x + 2U);
+        unsigned int bottomLeftOffset   = topLeft.x     +   bottomRight.y * (field_extents.x + 2U);
+        unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * (field_extents.x + 2U);
+        FieldT topInterpolation         = glm::mix(old_field[topLeftOffset], old_field[topRightOffset], rightProportion);
+        FieldT bottomInterpolation      = glm::mix(old_field[bottomLeftOffset], old_field[bottomRightOffset], rightProportion);
+        new_field[globalOffset]         = glm::mix(topInterpolation, bottomInterpolation, downProportion);
     }
 
     // Ensure simulation step is fully carried out

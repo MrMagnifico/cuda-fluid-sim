@@ -28,15 +28,9 @@ class FieldManager {
         uint2 m_paddedfieldExtents;
         dim3 m_gridDims;
 
-        cudaTextureObject_t m_densitiesTex, m_densitiesPrevTex, m_velocitiesTex, m_velocitiesPrevTex;
         cudaGraphicsResource_t m_densitiesResource, m_sourcesDensityResource, m_velocitiesResource, m_sourcesVelocityResource;
         glm::vec4 *m_densitySources, *m_densities, *m_densitiesPrev;
         glm::vec2 *m_velocitySources, *m_velocities, *m_velocitiesPrev;
-
-        template<typename T>
-        void setTexObjParams(cudaResourceDesc& resourceDesc, cudaTextureDesc& texDesc,
-                             const cudaChannelFormatDesc& channelDesc, const uint2 fieldExtents,
-                             T* deviceMemory);
 
         void densityStep();
         void velocityStep();

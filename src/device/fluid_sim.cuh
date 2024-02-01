@@ -51,7 +51,7 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
  * @param bs Strategy for handling boundaries (See BoundaryStrategy)
  * @param sim_params Simulation parameters
 */
-template<typename FieldT, typename FieldCudaT, typename VelocityT>
+template<typename FieldT, typename VelocityT>
 __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field,
                        uint2 field_extents, unsigned int num_cells,
                        BoundaryStrategy bs, SimulationParams sim_params);

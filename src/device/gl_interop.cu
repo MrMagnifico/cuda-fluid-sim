@@ -8,7 +8,7 @@ __global__ void copyFieldToTexture(T* field, cudaSurfaceObject_t texture_surface
     unsigned int tidY   = threadIdx.y + blockIdx.y * blockDim.y;
     if (tidX < texture_extents.x && tidY < texture_extents.y) { 
         unsigned int surfaceX   = tidX + 1U;
-        unsigned int surfaceY   = tidY + 1U;
+        unsigned int surfaceY   = texture_extents.y - (tidY + 1U); // OpenGL's y-axis grows upwards while CUDA's grows downwards, so flip our coordinates around 
         unsigned int offset     = surfaceX + surfaceY * (texture_extents.x + 2U);
         T value                 = field[offset];
 
