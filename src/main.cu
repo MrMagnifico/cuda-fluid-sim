@@ -32,9 +32,12 @@ int main(int argc, char* argv[]) {
     // Set sources
     for (unsigned int i = 0U; i < 50U; i++) {
         for (unsigned int j = 0U; j < 50U; j++) {
-            m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f));
-            m_fieldManager.setSourceDensity(make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f));
-            m_fieldManager.setSourceDensity(make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f));
+            m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec4(0.2f, 0.0f, 0.0f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(600U + i, 400U + j), glm::vec4(0.0f, 0.2f, 0.0f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(500U + i, 400U + j), glm::vec4(0.0f, 0.0f, 0.2f, 0.0f));
+            m_fieldManager.setSourceVelocity(make_uint2(300U + i, 300U + j), glm::vec2(0.2f, 0.0f));
+            m_fieldManager.setSourceVelocity(make_uint2(600U + i, 400U + j), glm::vec2(0.0f, 0.2f));
+            m_fieldManager.setSourceVelocity(make_uint2(500U + i, 400U + j), glm::vec2(0.2f, 0.2f));
         }
     }
     CUDA_ERROR(cudaDeviceSynchronize());
@@ -45,6 +48,7 @@ int main(int argc, char* argv[]) {
     m_window.registerMouseButtonCallback(ui::mouseButtonCallback);
 
     // Main loop
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     while (!m_window.shouldClose()) {
         double frameStart = glfwGetTime();
 
@@ -55,7 +59,6 @@ int main(int argc, char* argv[]) {
         m_fieldManager.copyFieldsToTextures();
 
         // Clear the screen
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Process controls

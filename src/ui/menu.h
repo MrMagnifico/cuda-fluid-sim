@@ -16,6 +16,9 @@ namespace ui {
         void drawSimControlsTab();
         void drawRenderTab();
 
+        void drawSimParamsControls();
+        void drawSimTogglesControls();
+
         void drawFieldDrawControls();        
         void drawHdrControls();
     };

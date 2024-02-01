@@ -1,5 +1,13 @@
-cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 project(CudaFluidSolver C CXX CUDA)
+
+# Enable CUDA debug symbols if compiling in debug mode
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G")
+endif()
+
+# Disable GLM CUDA warnings
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcudafe --diag_suppress=20012")
 
 # Set this before including framework such that it knows to use the OpenGL4.5 version of GLAD
 if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/framework")

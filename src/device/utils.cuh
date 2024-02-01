@@ -6,6 +6,7 @@
 DISABLE_WARNINGS_PUSH()
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 DISABLE_WARNINGS_POP()
 
 
@@ -33,5 +34,14 @@ __device__ CellLocationType2d determineLocationType() {
 __device__ float4 toRGBA(glm::vec2 val) { return make_float4(val.x, val.y, 0.0f, 1.0f); }
 
 __device__ float4 toRGBA(glm::vec3 val) { return make_float4(val.x, val.y, val.z, 1.0f); }
+
+__device__ float4 toRGBA(glm::vec4 val) { return make_float4(val.x, val.y, val.z, 1.0f); } // Assume that the w-axis coordinate is 
+
+__device__ glm::vec2 toGLM(float2 data) { return glm::vec2(data.x, data.y); }
+
+__device__ glm::vec3 toGLM(float3 data) { return glm::vec3(data.x, data.y, data.z); }
+
+__device__ glm::vec4 toGLM(float4 data) { return glm::vec4(data.x, data.y, data.z, data.w); }
+
 
 #endif

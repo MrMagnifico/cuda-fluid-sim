@@ -4,6 +4,12 @@
 
 #include <stdint.h>
 
+struct SimulationParams {
+    float timeStep                = 1e-1f;
+    float diffusionRate           = 1e1f;
+    uint32_t diffusionSimSteps    = 32U;
+    float advectionMultiplier     = 1e-3f;
+};
 
 struct RenderConfig {
     // What to render
@@ -12,15 +18,22 @@ struct RenderConfig {
     bool renderDensities        = true;
     bool renderVelocities       = false;
 
+    // Simulation step toggles
+    bool densityAddSources  = false;
+    bool densityDiffuse     = false;
+    bool densityAdvect      = false;
+    bool velocityAddSources = false;
+    bool velocityDiffuse    = false;
+    bool velocityAdvect     = false;
+    bool velocityProject    = false;
+
     // Simulation parameters
-    float timeStep                = 1e-1f;
-    float diffusionRate           = 1e1f;
-    uint32_t diffusionSimSteps    = 32U;
+    SimulationParams simulationParams;
     
     // HDR tonemapping and gamma correction
-    bool enableHdr  { true };
-    float exposure  { 1.0f };
-    float gamma     { 2.2f };
+    bool enableHdr  = true;
+    float exposure  = 1.0f;
+    float gamma     = 2.2f;
 };
 
 

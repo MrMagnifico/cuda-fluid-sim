@@ -9,16 +9,15 @@ DISABLE_WARNINGS_POP()
 
 
 template<typename T>
-__global__ void add_sources(T* densities, T* sources, float time_step, unsigned int num_cells) {
+__global__ void add_sources(T* densities, T* sources, unsigned int num_cells, SimulationParams sim_params) {
     unsigned int tidX   = threadIdx.x + blockIdx.x * blockDim.x;
     unsigned int tidY   = threadIdx.y + blockIdx.y * blockDim.y;
     unsigned int offset = tidX + tidY * blockDim.x * gridDim.x;
-    if (offset < num_cells) { densities[offset] += time_step * sources[offset]; }
+    if (offset < num_cells) { densities[offset] += sim_params.timeStep * sources[offset]; }
 }
 
 template<typename T>
-__global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigned int num_cells,
-                        BoundaryStrategy bs, float time_step, float diffusion_rate, unsigned int sim_steps) {
+__global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigned int num_cells, BoundaryStrategy bs, SimulationParams sim_params) {
     // Shared memory for storing old and new field data locally for fast access
     // Stores old field and new field data (offset needed to access latter)
     T *gridData                 = shared_memory_proxy<T>();
@@ -40,7 +39,7 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
     
     // Local thread indexing for shared memory (current thread and axial neigbhours)
     // Old field
-    unsigned int verticalStride     = blockDim.x + 2U;                                                          // We store blockDim.x + 2 (ghost cells) elements per row
+    unsigned int verticalStride     = blockDim.x + 2U;                                                              // We store blockDim.x + 2 (ghost cells) elements per row
     unsigned int threadOffsetOld    = (threadIdx.x + 1U)         + ((threadIdx.y + 1U)           * verticalStride); // +1 accounts for storage taken up by ghost cells
     unsigned int leftOffsetOld      = ((threadIdx.x - 1U) + 1U)  + ((threadIdx.y + 1U)           * verticalStride);    
     unsigned int rightOffsetOld     = ((threadIdx.x + 1U) + 1U)  + ((threadIdx.y + 1U)           * verticalStride);
@@ -100,10 +99,10 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
     }
 
     // Simulation parameters
-    float diffSpeed         = time_step * diffusion_rate * field_extents.x * field_extents.y;
+    float diffSpeed         = sim_params.timeStep * sim_params.diffusionRate * field_extents.x * field_extents.y;
     float relaxationDenom   = 1.0f + (4.0f * diffSpeed);
 
-    for (unsigned int step = 0U; step < sim_steps; step++) {
+    for (unsigned int step = 0U; step < sim_params.diffusionSimSteps; step++) {
         // Gauss-Seidel relaxation step for non-boundary cells
         if (handlingInterior) {
             gridData[threadOffsetNew] = (gridData[threadOffsetOld] +
@@ -127,10 +126,10 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
     if (validThread) { new_field[globalOffset] = gridData[threadOffsetNew]; }
 }
 
-template<typename FieldT, typename VelocityT>
+template<typename FieldT, typename FieldCudaT, typename VelocityT>
 __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field,
                        uint2 field_extents, unsigned int num_cells,
-                       BoundaryStrategy bs, float time_step) {
+                       BoundaryStrategy bs, SimulationParams sim_params) {
     // Global thread indexing (current thread and axial neigbhours)
     unsigned int globalIdX          = threadIdx.x + blockIdx.x * blockDim.x;
     unsigned int globalIdY          = threadIdx.y + blockIdx.y * blockDim.y;
@@ -142,45 +141,28 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
                                       0U < globalIdY && globalIdY <= field_extents.y;
 
     // Timestep in both directions (adjust by field size)
-    glm::vec2 timeStepAxial(time_step *  field_extents.x, time_step * field_extents.y);
+    glm::vec2 timeStepAxial(sim_params.advectionMultiplier * sim_params.timeStep * field_extents.x,
+                            sim_params.advectionMultiplier * sim_params.timeStep * field_extents.y);
     
     if (handlingInterior) {
-        // Trace backwards according to velocity fields to find cell whose density ends up in the cell managed by this thread
+        // Trace backwards according to velocity fields to find coordinates whose density ends up in the cell managed by this 
         VelocityT velocity          = velocity_field[globalOffset];
-        glm::vec2 backTrace(globalIdX - (timeStepAxial.x * velocity.x),
-                            globalIdY - (timeStepAxial.y * velocity.y));
-        backTrace                   = glm::clamp(backTrace,
-                                                 glm::vec2(0.5f),
-                                                 glm::vec2(field_extents.x + 0.5f, field_extents.y + 0.5f));
-        // x = i - dt0 * u[IX(i, j)];
-        // y = j - dt0 * v[IX(i, j)];
-        // if (x < 0.5) x = 0.5;
-        // if (x > N + 0.5) x = N + 0.5;
-        // if (y < 0.5)
-        //     y = 0.5;
-        // if (y > N + 0.5)
-        //     y = N + 0.5;
-
-        // Coordinates of neighbours of backtraced points (whose coordinates are non-integer)
-        glm::uvec2 backTraceRound   = backTrace;
-        unsigned int backtraceLeftUpOffset      = backTraceRound.x + backTraceRound.y * blockDim.x * gridDim.x;
-        unsigned int backtraceRightUpOffset     = (backTraceRound.x + 1U) + backTraceRound.y * blockDim.x * gridDim.x;
-        unsigned int backtraceLeftDownOffset    = backTraceRound.x + (backTraceRound.y + 1U) * blockDim.x * gridDim.x;
-        unsigned int backtraceRightDownOffset   = (backTraceRound.x + 1U) + (backTraceRound.y + 1U) * blockDim.x * gridDim.x;
-        // j0 = (int)y;
-        // i0 = (int)x;
-        // i1 = i0 + 1;
-        // j1 = j0 + 1;
-
-        // Linear interpolation coefficients
-        float s1                      = backTrace.x - backTraceRound.x;
-        float s0                      = 1 - s1;
-        float t0                      = backTrace.y - backTraceRound.y;
-        float t1                      = 1 - t0;
+        glm::vec2 backTrace         = glm::vec2(globalIdX - (timeStepAxial.x * velocity.x),
+                                                globalIdY - (timeStepAxial.y * velocity.y));
         
         // Bilinear interpolation of cell values
-        new_field[globalOffset] =   s0 * (t0 * old_field[backtraceLeftUpOffset] + t1 * old_field[backtraceLeftDownOffset]) +
-                                    s1 * (t0 * old_field[backtraceRightUpOffset] + t1 * old_field[backtraceRightDownOffset]);
+        // TODO: Replace with texture samplers; god please forgive me I tried
+        glm::uvec2 topLeft              = glm::uvec2(backTrace);
+        glm::uvec2 bottomRight          = glm::uvec2(backTrace + 1.0f);
+        float rightProportion           = backTrace.x - topLeft.x;
+        float downProportion            = backTrace.y - topLeft.y;
+        unsigned int topLeftOffset      = topLeft.x     +   topLeft.y * blockDim.x * gridDim.x;
+        unsigned int topRightOffset     = bottomRight.x +   topLeft.y * blockDim.x * gridDim.x;
+        unsigned int bottomLeftOffset   = topLeft.x     +   bottomRight.y * blockDim.x * gridDim.x;
+        unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * blockDim.x * gridDim.x;
+        FieldT topInterpolation         = glm::mix(old_field[topLeftOffset], old_field[topRightOffset], rightProportion);
+        FieldT bottomInterpolation      = glm::mix(old_field[bottomLeftOffset], old_field[bottomRightOffset], rightProportion);
+        new_field[globalOffset]         = glm::mix(topInterpolation, bottomInterpolation, downProportion);
     }
 
     // Ensure simulation step is fully carried out

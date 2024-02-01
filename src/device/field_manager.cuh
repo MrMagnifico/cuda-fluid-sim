@@ -5,7 +5,7 @@
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 #include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 DISABLE_WARNINGS_POP()
 
 #include <render/config.h>
@@ -17,7 +17,7 @@ class FieldManager {
                      const GLuint sourcesVelocityTex, const GLuint velocitiesTex);
 
         void copyFieldsToTextures();
-        void setSourceDensity(uint2 coords, glm::vec3 val);
+        void setSourceDensity(uint2 coords, glm::vec4 val);
         void setSourceVelocity(uint2 coords, glm::vec2 val);
         void simulate();
 
@@ -28,10 +28,15 @@ class FieldManager {
         uint2 m_paddedfieldExtents;
         dim3 m_gridDims;
 
-        // TODO: Expand to other fields
+        cudaTextureObject_t m_densitiesTex, m_densitiesPrevTex;
         cudaGraphicsResource_t m_densitiesResource, m_sourcesDensityResource, m_velocitiesResource, m_sourcesVelocityResource;
-        glm::vec3 *m_densitySources, *m_densities, *m_densitiesPrev;
+        glm::vec4 *m_densitySources, *m_densities, *m_densitiesPrev;
         glm::vec2 *m_velocitySources, *m_velocities, *m_velocitiesPrev;
+
+        template<typename T>
+        void setTexObjParams(cudaResourceDesc& resourceDesc, cudaTextureDesc& texDesc,
+                             const cudaChannelFormatDesc& channelDesc, const uint2 fieldExtents,
+                             T* deviceMemory);
 
         void densityStep();
         void velocityStep();

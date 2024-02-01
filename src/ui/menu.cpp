@@ -27,11 +27,37 @@ void ui::Menu::draw() {
 
 void ui::Menu::drawSimControlsTab() {
     if (ImGui::BeginTabItem("Simulation")) {
-        ImGui::InputFloat("Time step", &m_renderConfig.timeStep, 0.01f, 10.0f, "%.2f");
-        ImGui::InputFloat("Diffusion rate", &m_renderConfig.diffusionRate, 0.01f, 10.0f, "%.2f");
-        ImGui::SliderInt("Diffusion simulation steps", reinterpret_cast<int*>(&m_renderConfig.diffusionSimSteps), 1, 128);
+        ImGui::Text("Step Toggles");
+        drawSimTogglesControls();
+        
+        ImGui::NewLine();
+        ImGui::Separator();
+        
+        ImGui::Text("Parameters");
+        drawSimParamsControls();
+
         ImGui::EndTabItem();
     }
+}
+
+void ui::Menu::drawSimTogglesControls() {
+    ImGui::Text("Densities");
+    ImGui::Checkbox("Add sources##Densities",   &m_renderConfig.densityAddSources);
+    ImGui::Checkbox("Diffuse##Densities",       &m_renderConfig.densityDiffuse);
+    ImGui::Checkbox("Advect##Densities",        &m_renderConfig.densityAdvect);
+    ImGui::NewLine();
+    ImGui::Text("Velocities");
+    ImGui::Checkbox("Add sources##Velocities",  &m_renderConfig.velocityAddSources);
+    ImGui::Checkbox("Diffuse##Velocities",      &m_renderConfig.velocityDiffuse);
+    ImGui::Checkbox("Advect##Velocities",       &m_renderConfig.velocityAdvect);
+    ImGui::Checkbox("Project##Velocities",      &m_renderConfig.velocityProject);
+}
+
+void ui::Menu::drawSimParamsControls() {
+    ImGui::InputFloat("Time step", &m_renderConfig.simulationParams.timeStep, 0.01f, 10.0f, "%.2f");
+    ImGui::InputFloat("Diffusion rate", &m_renderConfig.simulationParams.diffusionRate, 0.01f, 10.0f, "%.2f");
+    ImGui::SliderInt("Diffusion simulation steps", reinterpret_cast<int*>(&m_renderConfig.simulationParams.diffusionSimSteps), 1, 128);
+    ImGui::InputFloat("Advection multiplier", &m_renderConfig.simulationParams.advectionMultiplier, 0.001f, 0.01f, "%.3f");
 }
 
 void ui::Menu::drawRenderTab() {
