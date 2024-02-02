@@ -35,6 +35,14 @@ FieldManager::FieldManager(const RenderConfig& renderConfig, const uint2 fieldEx
         CUDA_ERROR(cudaMemset(*velocityField, 0, fieldSizeVelocity));
     }
 
+    // Allocate and zero initialise memory for intermediate value fields
+    std::array<float**, 2UL> fieldsIntermediate = { &m_gradientField, &m_projectionField };
+    size_t fieldSizeIntermediate                = (m_paddedfieldExtents.x) * (m_paddedfieldExtents.y) * sizeof(float);
+    for (float** field : fieldsIntermediate) {
+        CUDA_ERROR(cudaMalloc(field, fieldSizeIntermediate));
+        CUDA_ERROR(cudaMemset(*field, 0, fieldSizeIntermediate));
+    }
+
     // Create OpenGL textures resource handles
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_sourcesDensityResource,   sourcesDensityTex,  GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_densitiesResource,        densitiesTex,       GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
@@ -90,12 +98,15 @@ void FieldManager::velocityStep() {
     if (m_renderConfig.velocityDiffuse) {
         std::swap(m_velocities, m_velocitiesPrev);
         size_t sharedMemSize = (utils::BLOCK_SIZE.x + 2UL) * (utils::BLOCK_SIZE.y + 2UL) * sizeof(glm::vec2) * 2UL; // Account for ghost cells and the fact that we store TWO fields (old and new)
-        diffuse<<<m_gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(m_velocitiesPrev, m_velocities, m_fieldExtents, Conserve, m_renderConfig.simulationParams);
+        diffuse<<<m_gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(m_velocitiesPrev, m_velocities, m_fieldExtents, Reverse, m_renderConfig.simulationParams);
+        if (m_renderConfig.velocityProject) { project<<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocities, m_gradientField, m_projectionField,
+                                                                                         m_fieldExtents, m_renderConfig.simulationParams); }
     }
     if (m_renderConfig.velocityAdvect) {
         std::swap(m_velocities, m_velocitiesPrev);
         advect<glm::vec2, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocitiesPrev, m_velocities, m_velocitiesPrev, m_fieldExtents, 
-                                                                        Conserve, m_renderConfig.simulationParams);
+                                                                        Reverse, m_renderConfig.simulationParams);
+        if (m_renderConfig.velocityProject) { project<<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocities, m_gradientField, m_projectionField,
+                                                                                         m_fieldExtents, m_renderConfig.simulationParams); }
     }
-    if (m_renderConfig.velocityProject) { /* TODO: Add projection step */ }
 }

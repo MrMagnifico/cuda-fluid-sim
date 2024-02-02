@@ -151,18 +151,66 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
     
     // Handle boundary cells
     if (statusFlags.validThread && !statusFlags.handlingInterior) {
-        unsigned int globalLeftOffset   = (global.idX - 1U) + global.idY * global.verticalStride;
-        unsigned int globalRightOffset  = (global.idX + 1U) + global.idY * global.verticalStride;
-        unsigned int globalUpOffset     = global.idX + (global.idY - 1U) * global.verticalStride;
-        unsigned int globalDownOffset   = global.idX + (global.idY + 1U) * global.verticalStride;
         handle_boundary(new_field, field_extents, bs,
                         global.idX, global.idY,
-                        global.offset, globalLeftOffset, globalRightOffset, globalUpOffset, globalDownOffset);
+                        global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
     }
 }
 
-__global__ void project(glm::vec2* velocities, float* gradient_field, float* projection_field) {
+__global__ void project(glm::vec2* velocities, float* gradient_field, float* projection_field, uint2 field_extents,
+                        SimulationParams sim_params) {
+    GlobalIndexing global   = generate_global_indices(field_extents);
+    StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
+    float hysteresis        = rsqrtf(field_extents.x * field_extents.y);
 
+    // Compute derivative field (finite horizontal and vertical gradients) and zero out projection field
+    if (statusFlags.handlingInterior) {
+        gradient_field[global.offset]   = -0.5f * hysteresis * (velocities[global.rightOffset].x    - velocities[global.leftOffset].x +
+                                                                velocities[global.upOffset].y       - velocities[global.downOffset].y);
+        projection_field[global.offset] = 0.0f;
+    }
+    __syncthreads();
+    if (statusFlags.validThread && !statusFlags.handlingInterior) {
+        handle_boundary(gradient_field, field_extents, Conserve,
+                        global.idX, global.idY,
+                        global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
+        handle_boundary(projection_field, field_extents, Conserve,
+                        global.idX, global.idY,
+                        global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
+    }
+
+    // Compute projection field via Gauss-Seidel iteration
+    for (unsigned int step = 0U; step < sim_params.projectionSimSteps; step++) {
+        // Gauss-Seidel relaxation step for non-boundary cells
+        if (statusFlags.handlingInterior) {
+            projection_field[global.offset] = (gradient_field[global.offset] +
+                                               projection_field[global.leftOffset] + projection_field[global.rightOffset] +
+                                               projection_field[global.upOffset] + projection_field[global.downOffset]) / 4.0f;
+        }
+
+        // Ensure simulation step is fully carried out
+        __syncthreads();
+        
+        // Handle boundary cells
+        if (statusFlags.validThread && !statusFlags.handlingInterior) {
+            handle_boundary(projection_field, field_extents, Conserve,
+                            global.idX, global.idY,
+                            global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
+        }
+    }
+
+    // Compute mass-conserved velocity field from projection field
+    if (statusFlags.handlingInterior) {
+        glm::vec2& cellValue    = velocities[global.offset];
+        cellValue.x             -= 0.5f * (projection_field[global.rightOffset] - projection_field[global.leftOffset]) / hysteresis;
+        cellValue.y             -= 0.5f * (projection_field[global.upOffset] - projection_field[global.downOffset]) / hysteresis;
+    }
+    __syncthreads();
+    if (statusFlags.validThread && !statusFlags.handlingInterior) {
+        handle_boundary(velocities, field_extents, Reverse,
+                        global.idX, global.idY,
+                        global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
+    }
 }
 
 __device__ GlobalIndexing generate_global_indices(uint2 field_extents) {
