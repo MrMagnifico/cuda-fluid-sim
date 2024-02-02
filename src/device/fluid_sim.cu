@@ -19,72 +19,11 @@ template<typename T>
 __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, BoundaryStrategy bs, SimulationParams sim_params) {
     // Shared memory for storing old and new field data locally for fast access
     // Stores old field and new field data (offset needed to access latter)
-    T *gridData                 = shared_memory_proxy<T>();
-    unsigned int newFieldOffset = (blockDim.x + 2U) * (blockDim.y + 2U);
-
+    T *gridData             = shared_memory_proxy<T>();
     GlobalIndexing global   = generate_global_indices(field_extents);
+    SharedIndexing shared   = generate_shared_indices();
     StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
-    
-    // Local thread indexing for shared memory (current thread and axial neigbhours)
-    // Old field
-    unsigned int verticalStride     = blockDim.x + 2U;                                                              // We store blockDim.x + 2 (ghost cells) elements per row
-    unsigned int threadOffsetOld    = (threadIdx.x + 1U)         + ((threadIdx.y + 1U)           * verticalStride); // +1 accounts for storage taken up by ghost cells
-    unsigned int leftOffsetOld      = ((threadIdx.x - 1U) + 1U)  + ((threadIdx.y + 1U)           * verticalStride);    
-    unsigned int rightOffsetOld     = ((threadIdx.x + 1U) + 1U)  + ((threadIdx.y + 1U)           * verticalStride);
-    unsigned int upOffsetOld        = (threadIdx.x + 1U)         + (((threadIdx.y - 1U) + 1U)    * verticalStride);
-    unsigned int downOffsetOld      = (threadIdx.x + 1U)         + (((threadIdx.y + 1U) + 1U)    * verticalStride);
-    // New field
-    unsigned int threadOffsetNew    = threadOffsetOld + newFieldOffset;
-    unsigned int leftOffsetNew      = leftOffsetOld + newFieldOffset;
-    unsigned int rightOffsetNew     = rightOffsetOld + newFieldOffset;
-    unsigned int upOffsetNew        = upOffsetOld + newFieldOffset;
-    unsigned int downOffsetNew      = downOffsetOld + newFieldOffset;
-    
-    // Fetch data from global memory and store in shared memory
-    if (statusFlags.validThread) {
-        CellLocationType2d locationType = determineLocationType();
-
-        // All threads transfer their corresponding cell's data for both fields
-        gridData[threadOffsetOld]   = old_field[global.offset];
-        gridData[threadOffsetNew]   = new_field[global.offset];
-
-        // Corner and edge cells additionally transfer neighbouring cells' data in the new field for Gauss-Seidel iterations
-        // if they do not lie on a field boundary
-        if (statusFlags.handlingInterior) {
-            switch (locationType) {
-                // Corners
-                case TopLeft:
-                    gridData[upOffsetNew]       = new_field[global.upOffset];
-                    gridData[leftOffsetNew]     = new_field[global.leftOffset];
-                    break;
-                case TopRight:
-                    gridData[upOffsetNew]       = new_field[global.upOffset];
-                    gridData[rightOffsetNew]    = new_field[global.rightOffset];
-                    break;
-                case BottomLeft:
-                    gridData[downOffsetNew]     = new_field[global.downOffset];
-                    gridData[leftOffsetNew]     = new_field[global.leftOffset];
-                    break;
-                case BottomRight:
-                    gridData[downOffsetNew]     = new_field[global.downOffset];
-                    gridData[rightOffsetNew]    = new_field[global.rightOffset];
-                    break;
-                // Edges
-                case Top:
-                    gridData[upOffsetNew]       = new_field[global.upOffset];
-                    break;
-                case Bottom:
-                    gridData[downOffsetNew]     = new_field[global.downOffset];
-                    break;
-                case Left:
-                    gridData[leftOffsetNew]     = new_field[global.leftOffset];
-                    break;
-                case Right:
-                    gridData[rightOffsetNew]    = new_field[global.rightOffset];
-                    break;
-            }
-        }
-    }
+    global_to_shared(gridData, old_field, new_field, statusFlags, global, shared);
 
     // Simulation parameters
     float diffSpeed         = sim_params.timeStep * sim_params.diffusionRate * field_extents.x * field_extents.y;
@@ -93,11 +32,11 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
     for (unsigned int step = 0U; step < sim_params.diffusionSimSteps; step++) {
         // Gauss-Seidel relaxation step for non-boundary cells
         if (statusFlags.handlingInterior) {
-            gridData[threadOffsetNew] = (gridData[threadOffsetOld] +
-                                         diffSpeed * (gridData[leftOffsetNew] +
-                                                      gridData[rightOffsetNew] +
-                                                      gridData[upOffsetNew] +
-                                                      gridData[downOffsetNew])) / relaxationDenom; }
+            gridData[shared.offsetNew] = (gridData[shared.offsetOld] +
+                                          diffSpeed * (gridData[shared.leftOffsetNew] +
+                                                       gridData[shared.rightOffsetNew] +
+                                                       gridData[shared.upOffsetNew] +
+                                                       gridData[shared.downOffsetNew])) / relaxationDenom; }
 
         // Ensure simulation step is fully carried out
         __syncthreads();
@@ -106,12 +45,12 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
         if (statusFlags.validThread && !statusFlags.handlingInterior) {
             handle_boundary(gridData, field_extents, bs,
                             global.idX, global.idY,
-                            threadOffsetNew, leftOffsetNew, rightOffsetNew, upOffsetNew, downOffsetNew);
+                            shared.offsetNew, shared.leftOffsetNew, shared.rightOffsetNew, shared.upOffsetNew, shared.downOffsetNew);
         }
     }
 
     // Write new field value to global memory
-    if (statusFlags.validThread) { new_field[global.offset] = gridData[threadOffsetNew]; }
+    if (statusFlags.validThread) { new_field[global.offset] = gridData[shared.offsetNew]; }
 }
 
 template<typename FieldT, typename VelocityT>
@@ -226,12 +165,83 @@ __device__ GlobalIndexing generate_global_indices(uint2 field_extents) {
     return globalIndices;
 }
 
+__device__ SharedIndexing generate_shared_indices() {
+    SharedIndexing shared;
+    
+    // First field
+    shared.verticalStride   = blockDim.x + 2U;                                                                      // We store blockDim.x + 2 (ghost cells) elements per row
+    shared.offsetOld        = (threadIdx.x + 1U)        + ((threadIdx.y + 1U)           * shared.verticalStride);   // +1 accounts for storage taken up by ghost cells
+    shared.leftOffsetOld    = ((threadIdx.x - 1U) + 1U) + ((threadIdx.y + 1U)           * shared.verticalStride);    
+    shared.rightOffsetOld   = ((threadIdx.x + 1U) + 1U) + ((threadIdx.y + 1U)           * shared.verticalStride);
+    shared.upOffsetOld      = (threadIdx.x + 1U)        + (((threadIdx.y - 1U) + 1U)    * shared.verticalStride);
+    shared.downOffsetOld    = (threadIdx.x + 1U)        + (((threadIdx.y + 1U) + 1U)    * shared.verticalStride);
+    
+    // Second field
+    shared.newFieldOffset   = (blockDim.x + 2U) * (blockDim.y + 2U);
+    shared.offsetNew        = shared.offsetOld      + shared.newFieldOffset;
+    shared.leftOffsetNew    = shared.leftOffsetOld  + shared.newFieldOffset;
+    shared.rightOffsetNew   = shared.rightOffsetOld + shared.newFieldOffset;
+    shared.upOffsetNew      = shared.upOffsetOld    + shared.newFieldOffset;
+    shared.downOffsetNew    = shared.downOffsetOld  + shared.newFieldOffset;
+
+    return shared;
+}
+
 __device__ StatusFlags generate_status_flags(unsigned int globalIdX, unsigned int globalIdY, uint2 field_extents) {
     StatusFlags StatusFlags;
     StatusFlags.validThread         = globalIdX <= field_extents.x + 1U && globalIdY <= field_extents.y + 1U;
     StatusFlags.handlingInterior    = 0U < globalIdX && globalIdX <= field_extents.x && 
                                       0U < globalIdY && globalIdY <= field_extents.y;
     return StatusFlags;
+}
+
+template<typename T>
+__device__ void global_to_shared(T* shared_mem, T* first_field, T* second_field,
+                                 const StatusFlags& status_flags, const GlobalIndexing& global, const SharedIndexing& shared) {
+    if (status_flags.validThread) {
+        CellLocationType2d locationType = determineLocationType();
+
+        // All threads transfer their corresponding cell's data for both fields
+        shared_mem[shared.offsetOld]    = first_field[global.offset];
+        shared_mem[shared.upOffsetNew]  = second_field[global.offset];
+
+        // Corner and edge cells additionally transfer neighbouring cells' data in the new field for Gauss-Seidel iterations
+        // if they do not lie on a field boundary
+        if (status_flags.handlingInterior) {
+            switch (locationType) {
+                // Corners
+                case TopLeft:
+                    shared_mem[shared.upOffsetNew]      = second_field[global.upOffset];
+                    shared_mem[shared.leftOffsetNew]    = second_field[global.leftOffset];
+                    break;
+                case TopRight:
+                    shared_mem[shared.upOffsetNew]      = second_field[global.upOffset];
+                    shared_mem[shared.rightOffsetNew]   = second_field[global.rightOffset];
+                    break;
+                case BottomLeft:
+                    shared_mem[shared.downOffsetNew]    = second_field[global.downOffset];
+                    shared_mem[shared.leftOffsetNew]    = second_field[global.leftOffset];
+                    break;
+                case BottomRight:
+                    shared_mem[shared.downOffsetNew]    = second_field[global.downOffset];
+                    shared_mem[shared.rightOffsetNew]   = second_field[global.rightOffset];
+                    break;
+                // Edges
+                case Top:
+                    shared_mem[shared.upOffsetNew]      = second_field[global.upOffset];
+                    break;
+                case Bottom:
+                    shared_mem[shared.downOffsetNew]    = second_field[global.downOffset];
+                    break;
+                case Left:
+                    shared_mem[shared.leftOffsetNew]    = second_field[global.leftOffset];
+                    break;
+                case Right:
+                    shared_mem[shared.rightOffsetNew]   = second_field[global.rightOffset];
+                    break;
+            }
+        }
+    }
 }
 
 template<typename T>
