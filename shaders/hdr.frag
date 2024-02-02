@@ -48,7 +48,8 @@ vec3 hsvToRgb(vec3 hsv) {
 // Saturation is assumed to be maximal
 vec3 velocityVisualisation(vec2 velocity) {
     velocity.y      = -velocity.y;                              // Y grows in the downward direction in CUDA, so we reflect that
-    float angle     = atan(velocity.y, max(velocity.x, MIN_X)); // Avoid division by zero errors
+    if (abs(velocity.x) < MIN_X) { velocity.x = MIN_X; }        // Avoid division by zero errors
+    float angle     = atan(velocity.y, velocity.x);
     float magnitude = length(velocity);
     float hue       = degrees(angle) + 180.0;                   // Convert from [-PI, PI] to [0, 360]
     vec3 hsv        = vec3(hue, 1.0, magnitude);                // Use magnitude as unbounded value (tone-mapping should take care of >1 values)

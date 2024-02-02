@@ -88,8 +88,7 @@ template<typename FieldT, typename VelocityT>
 __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field, uint2 field_extents,
                        BoundaryStrategy bs, SimulationParams sim_params);
 
-__global__ void project(glm::vec2* velocities, float* gradient_field, float* projection_field, uint2 field_extents,
-                        SimulationParams sim_params);
+__global__ void project(glm::vec2* velocities, uint2 field_extents, SimulationParams sim_params);
 
 /**
  * Handle the boundaries of a field. Can handle both global and shared memory fields

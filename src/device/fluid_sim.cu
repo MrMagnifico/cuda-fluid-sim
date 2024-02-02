@@ -18,7 +18,6 @@ __global__ void add_sources(T* densities, T* sources, uint2 field_extents, Simul
 template<typename T>
 __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, BoundaryStrategy bs, SimulationParams sim_params) {
     // Shared memory for storing old and new field data locally for fast access
-    // Stores old field and new field data (offset needed to access latter)
     T *gridData             = shared_memory_proxy<T>();
     GlobalIndexing global   = generate_global_indices(field_extents);
     SharedIndexing shared   = generate_shared_indices();
@@ -68,6 +67,7 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
         VelocityT velocity  = velocity_field[global.offset];
         glm::vec2 backTrace = glm::vec2(global.idX - (timeStepAxial.x * velocity.x),
                                         global.idY - (timeStepAxial.y * velocity.y));
+        backTrace           = glm::clamp(backTrace, glm::vec2(0.0f), glm::vec2(field_extents.x, field_extents.y));
         
         // Bilinear interpolation of cell values
         // I tried texture samplers, man. They made my squares fly away, man
@@ -82,7 +82,7 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
         unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * global.verticalStride;
         FieldT topInterpolation         = glm::mix(old_field[topLeftOffset], old_field[topRightOffset], rightProportion);
         FieldT bottomInterpolation      = glm::mix(old_field[bottomLeftOffset], old_field[bottomRightOffset], rightProportion);
-        new_field[global.offset]         = glm::mix(topInterpolation, bottomInterpolation, downProportion);
+        new_field[global.offset]        = glm::mix(topInterpolation, bottomInterpolation, downProportion);
     }
 
     // Ensure simulation step is fully carried out
@@ -96,35 +96,37 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
     }
 }
 
-__global__ void project(glm::vec2* velocities, float* gradient_field, float* projection_field, uint2 field_extents,
-                        SimulationParams sim_params) {
+__global__ void project(glm::vec2* velocities, uint2 field_extents, SimulationParams sim_params) {
+    // Shared memory for storing derivative field and projection field data locally for fast access
+    extern __shared__ float derivProjFields[];
     GlobalIndexing global   = generate_global_indices(field_extents);
+    SharedIndexing shared   = generate_shared_indices();
     StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
     float hysteresis        = rsqrtf(field_extents.x * field_extents.y);
 
     // Compute derivative field (finite horizontal and vertical gradients) and zero out projection field
     if (statusFlags.handlingInterior) {
-        gradient_field[global.offset]   = -0.5f * hysteresis * (velocities[global.rightOffset].x    - velocities[global.leftOffset].x +
-                                                                velocities[global.upOffset].y       - velocities[global.downOffset].y);
-        projection_field[global.offset] = 0.0f;
+        derivProjFields[shared.offsetOld]  = -0.5f * hysteresis * (velocities[global.rightOffset].x    - velocities[global.leftOffset].x +
+                                                                   velocities[global.upOffset].y       - velocities[global.downOffset].y);
+        derivProjFields[shared.offsetNew]  = 0.0f;
     }
     __syncthreads();
     if (statusFlags.validThread && !statusFlags.handlingInterior) {
-        handle_boundary(gradient_field, field_extents, Conserve,
+        handle_boundary(derivProjFields, field_extents, Conserve,
                         global.idX, global.idY,
-                        global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
-        handle_boundary(projection_field, field_extents, Conserve,
+                        shared.offsetOld, shared.leftOffsetOld, shared.rightOffsetOld, shared.upOffsetOld, shared.downOffsetOld);
+        handle_boundary(derivProjFields, field_extents, Conserve,
                         global.idX, global.idY,
-                        global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
+                        shared.offsetNew, shared.leftOffsetNew, shared.rightOffsetNew, shared.upOffsetNew, shared.downOffsetNew);
     }
 
     // Compute projection field via Gauss-Seidel iteration
     for (unsigned int step = 0U; step < sim_params.projectionSimSteps; step++) {
         // Gauss-Seidel relaxation step for non-boundary cells
         if (statusFlags.handlingInterior) {
-            projection_field[global.offset] = (gradient_field[global.offset] +
-                                               projection_field[global.leftOffset] + projection_field[global.rightOffset] +
-                                               projection_field[global.upOffset] + projection_field[global.downOffset]) / 4.0f;
+            derivProjFields[shared.offsetNew] = (derivProjFields[shared.offsetOld]                                            +
+                                                 derivProjFields[shared.leftOffsetNew]    + derivProjFields[shared.rightOffsetNew]   +
+                                                 derivProjFields[shared.upOffsetNew]      + derivProjFields[shared.downOffsetNew]) / 4.0f;
         }
 
         // Ensure simulation step is fully carried out
@@ -132,17 +134,17 @@ __global__ void project(glm::vec2* velocities, float* gradient_field, float* pro
         
         // Handle boundary cells
         if (statusFlags.validThread && !statusFlags.handlingInterior) {
-            handle_boundary(projection_field, field_extents, Conserve,
+            handle_boundary(derivProjFields, field_extents, Conserve,
                             global.idX, global.idY,
-                            global.offset, global.leftOffset, global.rightOffset, global.upOffset, global.downOffset);
+                            shared.offsetNew, shared.leftOffsetNew, shared.rightOffsetNew, shared.upOffsetNew, shared.downOffsetNew);
         }
     }
 
     // Compute mass-conserved velocity field from projection field
     if (statusFlags.handlingInterior) {
         glm::vec2& cellValue    = velocities[global.offset];
-        cellValue.x             -= 0.5f * (projection_field[global.rightOffset] - projection_field[global.leftOffset]) / hysteresis;
-        cellValue.y             -= 0.5f * (projection_field[global.upOffset] - projection_field[global.downOffset]) / hysteresis;
+        cellValue.x             -= 0.5f * (derivProjFields[shared.rightOffsetNew] - derivProjFields[shared.leftOffsetNew]) / hysteresis;
+        cellValue.y             -= 0.5f * (derivProjFields[shared.upOffsetNew] - derivProjFields[shared.downOffsetNew]) / hysteresis;
     }
     __syncthreads();
     if (statusFlags.validThread && !statusFlags.handlingInterior) {

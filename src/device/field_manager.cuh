@@ -31,7 +31,6 @@ class FieldManager {
         cudaGraphicsResource_t m_densitiesResource, m_sourcesDensityResource, m_velocitiesResource, m_sourcesVelocityResource;
         glm::vec4 *m_densitySources, *m_densities, *m_densitiesPrev;
         glm::vec2 *m_velocitySources, *m_velocities, *m_velocitiesPrev;
-        float *m_gradientField, *m_projectionField;
 
         void densityStep();
         void velocityStep();

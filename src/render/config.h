@@ -16,17 +16,17 @@ struct RenderConfig {
     // What to render
     bool renderDensitySources   = false;
     bool renderVelocitySources  = false;
-    bool renderDensities        = true;
-    bool renderVelocities       = false;
+    bool renderDensities        = false;
+    bool renderVelocities       = true;
 
     // Simulation step toggles
-    bool densityAddSources  = true;
-    bool densityDiffuse     = true;
-    bool densityAdvect      = true;
-    bool velocityAddSources = true;
-    bool velocityDiffuse    = true;
-    bool velocityAdvect     = true;
-    bool velocityProject    = true;
+    bool densityAddSources  = false;
+    bool densityDiffuse     = false;
+    bool densityAdvect      = false;
+    bool velocityAddSources = false;
+    bool velocityDiffuse    = false;
+    bool velocityAdvect     = false;
+    bool velocityProject    = false;
 
     // Simulation parameters
     SimulationParams simulationParams;
