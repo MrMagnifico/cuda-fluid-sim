@@ -1,11 +1,28 @@
 #ifndef _FLUID_SIM_CUH_
 #define _FLUID_SIM_CUH_
 
+#include <framework/disable_all_warnings.h>
+DISABLE_WARNINGS_PUSH()
+#include <glm/vec2.hpp>
+DISABLE_WARNINGS_POP()
+
 #include <render/config.h>
 
 // Dictates how boundary edges will be dealt with
 enum BoundaryStrategy { Conserve = 0,   // Use same sign as interior neighbour
                         Reverse };      // Reverse sign of interior neighbour
+
+struct GlobalIndexing {
+    unsigned int idX, idY, offset;                              // Coordinates and index into global field memory of current thread
+    unsigned int verticalStride;                                // There are this many elements per row of the grid (includes ghost cells)
+    unsigned int leftOffset, rightOffset, upOffset, downOffset; // Indices into global memory of axial neighbours
+};
+
+struct StatusFlags {
+    bool validThread;       // Thread is actually handling a cell within field bounds
+    bool handlingInterior;  // Thread is handling interior cell
+};
+
 
 // Allows for templating dynamically sized shared memory
 template<typename T>
@@ -55,6 +72,7 @@ template<typename FieldT, typename VelocityT>
 __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field, uint2 field_extents,
                        BoundaryStrategy bs, SimulationParams sim_params);
 
+__global__ void project(glm::vec2* velocities, float* gradient_field, float* projection_field);
 
 /**
  * Handle the boundaries of a field. Can handle both global and shared memory fields
@@ -75,6 +93,26 @@ template<typename T>
 __device__ void handle_boundary(T* field, uint2 field_extents, BoundaryStrategy bs,
                                 unsigned int tidX, unsigned int tidY, unsigned int offset,
                                 unsigned int leftIdx, unsigned int rightIdx, unsigned int upIdx, unsigned int downIdx);
+
+/**
+ * Generate data for indexing thread and axial neighbours in field memory
+ * 
+ * @param field_extents Number of non-ghost cells in each axis of the fields being operated on
+ * 
+ * @return See GlobalIndexing documentation
+*/
+__device__ GlobalIndexing generate_global_indices(uint2 field_extents);
+
+/**
+ * Generate flags for determing cell operation
+ * 
+ * @param globalIdX X-coordinate of the calling thread in the overall grid
+ * @param globalIdY Y-coordinate of the calling thread in the overall grid
+ * @param field_extents Number of non-ghost cells in each axis of the fields being operated on
+ * 
+ * @return See StatusFlags documentation
+*/
+__device__ StatusFlags generate_status_flags(unsigned int globalIdX, unsigned int globalIdY, uint2 field_extents);
 
 
 #endif

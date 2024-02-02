@@ -10,11 +10,9 @@ DISABLE_WARNINGS_POP()
 
 template<typename T>
 __global__ void add_sources(T* densities, T* sources, uint2 field_extents, SimulationParams sim_params) {
-    unsigned int tidX   = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned int tidY   = threadIdx.y + blockIdx.y * blockDim.y;
-    unsigned int offset = tidX + tidY * (field_extents.x + 2U);
-    bool validThread    = tidX <= field_extents.x + 1U && tidY <= field_extents.y + 1U; // Thread is actually handling a cell within field bounds
-    if (validThread) { densities[offset] += sim_params.timeStep * sources[offset]; }
+    GlobalIndexing global   = generate_global_indices(field_extents);
+    StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
+    if (statusFlags.validThread) { densities[global.offset] += sim_params.timeStep * sources[global.offset]; }
 }
 
 template<typename T>
@@ -24,20 +22,8 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
     T *gridData                 = shared_memory_proxy<T>();
     unsigned int newFieldOffset = (blockDim.x + 2U) * (blockDim.y + 2U);
 
-    // Global thread indexing (current thread and axial neigbhours)
-    unsigned int globalIdX              = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned int globalIdY              = threadIdx.y + blockIdx.y * blockDim.y;
-    unsigned int globalVerticalStride   = field_extents.x + 2U; // There are this many elements per row of the grid (includes ghost cells)
-    unsigned int globalOffset           = globalIdX + globalIdY * globalVerticalStride;
-    unsigned int globalLeftOffset       = (globalIdX - 1U) + globalIdY * globalVerticalStride;
-    unsigned int globalRightOffset      = (globalIdX + 1U) + globalIdY * globalVerticalStride;
-    unsigned int globalUpOffset         = globalIdX + (globalIdY - 1U) * globalVerticalStride;
-    unsigned int globalDownOffset       = globalIdX + (globalIdY + 1U) * globalVerticalStride;
-
-    // Thread status flags
-    bool validThread        = globalIdX <= field_extents.x + 1U && globalIdY <= field_extents.y + 1U;   // Thread is actually handling a cell within field bounds
-    bool handlingInterior   = 0U < globalIdX && globalIdX <= field_extents.x &&                         // Thread is handling interior cell
-                              0U < globalIdY && globalIdY <= field_extents.y;
+    GlobalIndexing global   = generate_global_indices(field_extents);
+    StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
     
     // Local thread indexing for shared memory (current thread and axial neigbhours)
     // Old field
@@ -55,46 +41,46 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
     unsigned int downOffsetNew      = downOffsetOld + newFieldOffset;
     
     // Fetch data from global memory and store in shared memory
-    if (validThread) {
+    if (statusFlags.validThread) {
         CellLocationType2d locationType = determineLocationType();
 
         // All threads transfer their corresponding cell's data for both fields
-        gridData[threadOffsetOld]   = old_field[globalOffset];
-        gridData[threadOffsetNew]   = new_field[globalOffset];
+        gridData[threadOffsetOld]   = old_field[global.offset];
+        gridData[threadOffsetNew]   = new_field[global.offset];
 
         // Corner and edge cells additionally transfer neighbouring cells' data in the new field for Gauss-Seidel iterations
         // if they do not lie on a field boundary
-        if (handlingInterior) {
+        if (statusFlags.handlingInterior) {
             switch (locationType) {
                 // Corners
                 case TopLeft:
-                    gridData[upOffsetNew]       = new_field[globalUpOffset];
-                    gridData[leftOffsetNew]     = new_field[globalLeftOffset];
+                    gridData[upOffsetNew]       = new_field[global.upOffset];
+                    gridData[leftOffsetNew]     = new_field[global.leftOffset];
                     break;
                 case TopRight:
-                    gridData[upOffsetNew]       = new_field[globalUpOffset];
-                    gridData[rightOffsetNew]    = new_field[globalRightOffset];
+                    gridData[upOffsetNew]       = new_field[global.upOffset];
+                    gridData[rightOffsetNew]    = new_field[global.rightOffset];
                     break;
                 case BottomLeft:
-                    gridData[downOffsetNew]     = new_field[globalDownOffset];
-                    gridData[leftOffsetNew]     = new_field[globalLeftOffset];
+                    gridData[downOffsetNew]     = new_field[global.downOffset];
+                    gridData[leftOffsetNew]     = new_field[global.leftOffset];
                     break;
                 case BottomRight:
-                    gridData[downOffsetNew]     = new_field[globalDownOffset];
-                    gridData[rightOffsetNew]    = new_field[globalRightOffset];
+                    gridData[downOffsetNew]     = new_field[global.downOffset];
+                    gridData[rightOffsetNew]    = new_field[global.rightOffset];
                     break;
                 // Edges
                 case Top:
-                    gridData[upOffsetNew]       = new_field[globalUpOffset];
+                    gridData[upOffsetNew]       = new_field[global.upOffset];
                     break;
                 case Bottom:
-                    gridData[downOffsetNew]     = new_field[globalDownOffset];
+                    gridData[downOffsetNew]     = new_field[global.downOffset];
                     break;
                 case Left:
-                    gridData[leftOffsetNew]     = new_field[globalLeftOffset];
+                    gridData[leftOffsetNew]     = new_field[global.leftOffset];
                     break;
                 case Right:
-                    gridData[rightOffsetNew]    = new_field[globalRightOffset];
+                    gridData[rightOffsetNew]    = new_field[global.rightOffset];
                     break;
             }
         }
@@ -106,7 +92,7 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
 
     for (unsigned int step = 0U; step < sim_params.diffusionSimSteps; step++) {
         // Gauss-Seidel relaxation step for non-boundary cells
-        if (handlingInterior) {
+        if (statusFlags.handlingInterior) {
             gridData[threadOffsetNew] = (gridData[threadOffsetOld] +
                                          diffSpeed * (gridData[leftOffsetNew] +
                                                       gridData[rightOffsetNew] +
@@ -117,40 +103,32 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
         __syncthreads();
         
         // Handle boundary cells
-        if (validThread && !handlingInterior) {
+        if (statusFlags.validThread && !statusFlags.handlingInterior) {
             handle_boundary(gridData, field_extents, bs,
-                            globalIdX, globalIdY,
+                            global.idX, global.idY,
                             threadOffsetNew, leftOffsetNew, rightOffsetNew, upOffsetNew, downOffsetNew);
         }
     }
 
     // Write new field value to global memory
-    if (validThread) { new_field[globalOffset] = gridData[threadOffsetNew]; }
+    if (statusFlags.validThread) { new_field[global.offset] = gridData[threadOffsetNew]; }
 }
 
 template<typename FieldT, typename VelocityT>
 __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field, uint2 field_extents,
                        BoundaryStrategy bs, SimulationParams sim_params) {
-    // Global thread indexing (current thread and axial neigbhours)
-    unsigned int globalIdX              = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned int globalIdY              = threadIdx.y + blockIdx.y * blockDim.y;
-    unsigned int globalVerticalStride   = field_extents.x + 2U; // There are this many elements per row of the grid (includes ghost cells)
-    unsigned int globalOffset           = globalIdX + globalIdY * globalVerticalStride;
-
-    // Thread status flags
-    bool validThread        = globalIdX <= field_extents.x + 1U && globalIdY <= field_extents.y + 1U;   // Thread is actually handling a cell within field bounds
-    bool handlingInterior   = 0U < globalIdX && globalIdX <= field_extents.x &&                         // Thread is handling interior cell
-                              0U < globalIdY && globalIdY <= field_extents.y;
+    GlobalIndexing global   = generate_global_indices(field_extents);
+    StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
 
     // Timestep in both directions (adjust by field size)
     glm::vec2 timeStepAxial(sim_params.advectionMultiplier * sim_params.timeStep * field_extents.x,
                             sim_params.advectionMultiplier * sim_params.timeStep * field_extents.y);
     
-    if (handlingInterior) {
+    if (statusFlags.handlingInterior) {
         // Trace backwards according to velocity fields to find coordinates whose density ends up in the cell managed by this 
-        VelocityT velocity  = velocity_field[globalOffset];
-        glm::vec2 backTrace = glm::vec2(globalIdX - (timeStepAxial.x * velocity.x),
-                                        globalIdY - (timeStepAxial.y * velocity.y));
+        VelocityT velocity  = velocity_field[global.offset];
+        glm::vec2 backTrace = glm::vec2(global.idX - (timeStepAxial.x * velocity.x),
+                                        global.idY - (timeStepAxial.y * velocity.y));
         
         // Bilinear interpolation of cell values
         // I tried texture samplers, man. They made my squares fly away, man
@@ -159,28 +137,53 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
         glm::uvec2 bottomRight          = glm::uvec2(backTrace + 1.0f);
         float rightProportion           = backTrace.x - topLeft.x;
         float downProportion            = backTrace.y - topLeft.y;
-        unsigned int topLeftOffset      = topLeft.x     +   topLeft.y * globalVerticalStride;
-        unsigned int topRightOffset     = bottomRight.x +   topLeft.y * globalVerticalStride;
-        unsigned int bottomLeftOffset   = topLeft.x     +   bottomRight.y * globalVerticalStride;
-        unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * globalVerticalStride;
+        unsigned int topLeftOffset      = topLeft.x     +   topLeft.y * global.verticalStride;
+        unsigned int topRightOffset     = bottomRight.x +   topLeft.y * global.verticalStride;
+        unsigned int bottomLeftOffset   = topLeft.x     +   bottomRight.y * global.verticalStride;
+        unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * global.verticalStride;
         FieldT topInterpolation         = glm::mix(old_field[topLeftOffset], old_field[topRightOffset], rightProportion);
         FieldT bottomInterpolation      = glm::mix(old_field[bottomLeftOffset], old_field[bottomRightOffset], rightProportion);
-        new_field[globalOffset]         = glm::mix(topInterpolation, bottomInterpolation, downProportion);
+        new_field[global.offset]         = glm::mix(topInterpolation, bottomInterpolation, downProportion);
     }
 
     // Ensure simulation step is fully carried out
     __syncthreads();
     
     // Handle boundary cells
-    if (validThread && !handlingInterior) {
-        unsigned int globalLeftOffset   = (globalIdX - 1U) + globalIdY * globalVerticalStride;
-        unsigned int globalRightOffset  = (globalIdX + 1U) + globalIdY * globalVerticalStride;
-        unsigned int globalUpOffset     = globalIdX + (globalIdY - 1U) * globalVerticalStride;
-        unsigned int globalDownOffset   = globalIdX + (globalIdY + 1U) * globalVerticalStride;
+    if (statusFlags.validThread && !statusFlags.handlingInterior) {
+        unsigned int globalLeftOffset   = (global.idX - 1U) + global.idY * global.verticalStride;
+        unsigned int globalRightOffset  = (global.idX + 1U) + global.idY * global.verticalStride;
+        unsigned int globalUpOffset     = global.idX + (global.idY - 1U) * global.verticalStride;
+        unsigned int globalDownOffset   = global.idX + (global.idY + 1U) * global.verticalStride;
         handle_boundary(new_field, field_extents, bs,
-                        globalIdX, globalIdY,
-                        globalOffset, globalLeftOffset, globalRightOffset, globalUpOffset, globalDownOffset);
+                        global.idX, global.idY,
+                        global.offset, globalLeftOffset, globalRightOffset, globalUpOffset, globalDownOffset);
     }
+}
+
+__global__ void project(glm::vec2* velocities, float* gradient_field, float* projection_field) {
+
+}
+
+__device__ GlobalIndexing generate_global_indices(uint2 field_extents) {
+    GlobalIndexing globalIndices;
+    globalIndices.idX               = threadIdx.x + blockIdx.x * blockDim.x;
+    globalIndices.idY               = threadIdx.y + blockIdx.y * blockDim.y;
+    globalIndices.verticalStride    = field_extents.x + 2U;
+    globalIndices.offset            = globalIndices.idX         + globalIndices.idY * globalIndices.verticalStride;
+    globalIndices.leftOffset        = (globalIndices.idX  - 1U) + globalIndices.idY * globalIndices.verticalStride;
+    globalIndices.rightOffset       = (globalIndices.idX  + 1U) + globalIndices.idY * globalIndices.verticalStride;
+    globalIndices.upOffset          = globalIndices.idX         + (globalIndices.idY - 1U) * globalIndices.verticalStride;
+    globalIndices.downOffset        = globalIndices.idX         + (globalIndices.idY + 1U) * globalIndices.verticalStride;
+    return globalIndices;
+}
+
+__device__ StatusFlags generate_status_flags(unsigned int globalIdX, unsigned int globalIdY, uint2 field_extents) {
+    StatusFlags StatusFlags;
+    StatusFlags.validThread         = globalIdX <= field_extents.x + 1U && globalIdY <= field_extents.y + 1U;
+    StatusFlags.handlingInterior    = 0U < globalIdX && globalIdX <= field_extents.x && 
+                                      0U < globalIdY && globalIdY <= field_extents.y;
+    return StatusFlags;
 }
 
 template<typename T>
