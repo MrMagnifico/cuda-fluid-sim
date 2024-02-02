@@ -72,33 +72,29 @@ void FieldManager::simulate() {
 }
 
 void FieldManager::densityStep() {
-    if (m_renderConfig.densityAddSources) { add_sources<<<m_gridDims, utils::BLOCK_SIZE>>>(m_densities, m_densitySources, m_fieldExtents, m_paddedfieldExtents.x * m_paddedfieldExtents.y, m_renderConfig.simulationParams); }
+    if (m_renderConfig.densityAddSources) { add_sources<<<m_gridDims, utils::BLOCK_SIZE>>>(m_densities, m_densitySources, m_fieldExtents, m_renderConfig.simulationParams); }
     if (m_renderConfig.densityDiffuse) {
         std::swap(m_densities,      m_densitiesPrev);
         size_t sharedMemSize = (utils::BLOCK_SIZE.x + 2UL) * (utils::BLOCK_SIZE.y + 2UL) * sizeof(glm::vec4) * 2UL; // Account for ghost cells and the fact that we store TWO fields (old and new)
-        diffuse<<<m_gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(m_densitiesPrev, m_densities, m_fieldExtents, m_paddedfieldExtents.x * m_paddedfieldExtents.y,
-                                                                  Conserve, m_renderConfig.simulationParams);
+        diffuse<<<m_gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(m_densitiesPrev, m_densities, m_fieldExtents, Conserve, m_renderConfig.simulationParams);
     }
     if (m_renderConfig.densityAdvect) {
         std::swap(m_densities,      m_densitiesPrev);
-        advect<glm::vec4, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_densitiesPrev, m_densities, m_velocities,
-                                                                        m_fieldExtents, m_paddedfieldExtents.x * m_paddedfieldExtents.y,
+        advect<glm::vec4, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_densitiesPrev, m_densities, m_velocities, m_fieldExtents,
                                                                         Conserve, m_renderConfig.simulationParams);
     }
 }
 
 void FieldManager::velocityStep() {
-    if (m_renderConfig.velocityAddSources) { add_sources<<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocities, m_velocitySources, m_fieldExtents, m_paddedfieldExtents.x * m_paddedfieldExtents.y, m_renderConfig.simulationParams); }
+    if (m_renderConfig.velocityAddSources) { add_sources<<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocities, m_velocitySources, m_fieldExtents, m_renderConfig.simulationParams); }
     if (m_renderConfig.velocityDiffuse) {
         std::swap(m_velocities, m_velocitiesPrev);
         size_t sharedMemSize = (utils::BLOCK_SIZE.x + 2UL) * (utils::BLOCK_SIZE.y + 2UL) * sizeof(glm::vec2) * 2UL; // Account for ghost cells and the fact that we store TWO fields (old and new)
-        diffuse<<<m_gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(m_velocitiesPrev, m_velocities, m_fieldExtents, m_paddedfieldExtents.x * m_paddedfieldExtents.y,
-                                                                  Conserve, m_renderConfig.simulationParams);
+        diffuse<<<m_gridDims, utils::BLOCK_SIZE, sharedMemSize>>>(m_velocitiesPrev, m_velocities, m_fieldExtents, Conserve, m_renderConfig.simulationParams);
     }
     if (m_renderConfig.velocityAdvect) {
         std::swap(m_velocities, m_velocitiesPrev);
-        advect<glm::vec2, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocitiesPrev, m_velocities, m_velocitiesPrev,
-                                                                        m_fieldExtents, m_paddedfieldExtents.x * m_paddedfieldExtents.y,
+        advect<glm::vec2, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocitiesPrev, m_velocities, m_velocitiesPrev, m_fieldExtents, 
                                                                         Conserve, m_renderConfig.simulationParams);
     }
     if (m_renderConfig.velocityProject) { /* TODO: Add projection step */ }

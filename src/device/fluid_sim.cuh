@@ -24,7 +24,7 @@ __device__ T* shared_memory_proxy() {
  * @param sim_params Simulation parameters
 */
 template<typename T>
-__global__ void add_sources(T* densities, T* sources, uint2 field_extents, unsigned int num_cells, SimulationParams sim_params);
+__global__ void add_sources(T* densities, T* sources, uint2 field_extents, SimulationParams sim_params);
 
 /**
  * Compute diffusion of densities across field of cells
@@ -37,7 +37,7 @@ __global__ void add_sources(T* densities, T* sources, uint2 field_extents, unsig
  * @param sim_params Simulation parameters
 */
 template<typename T>
-__global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigned int num_cells, BoundaryStrategy bs, SimulationParams sim_params);
+__global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, BoundaryStrategy bs, SimulationParams sim_params);
 
 
 /**
@@ -52,8 +52,7 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
  * @param sim_params Simulation parameters
 */
 template<typename FieldT, typename VelocityT>
-__global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field,
-                       uint2 field_extents, unsigned int num_cells,
+__global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field, uint2 field_extents,
                        BoundaryStrategy bs, SimulationParams sim_params);
 
 

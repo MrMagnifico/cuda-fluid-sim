@@ -9,33 +9,35 @@ DISABLE_WARNINGS_POP()
 
 
 template<typename T>
-__global__ void add_sources(T* densities, T* sources, uint2 field_extents, unsigned int num_cells, SimulationParams sim_params) {
+__global__ void add_sources(T* densities, T* sources, uint2 field_extents, SimulationParams sim_params) {
     unsigned int tidX   = threadIdx.x + blockIdx.x * blockDim.x;
     unsigned int tidY   = threadIdx.y + blockIdx.y * blockDim.y;
     unsigned int offset = tidX + tidY * (field_extents.x + 2U);
-    if (offset < num_cells) { densities[offset] += sim_params.timeStep * sources[offset]; }
+    bool validThread    = tidX <= field_extents.x + 1U && tidY <= field_extents.y + 1U; // Thread is actually handling a cell within field bounds
+    if (validThread) { densities[offset] += sim_params.timeStep * sources[offset]; }
 }
 
 template<typename T>
-__global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigned int num_cells, BoundaryStrategy bs, SimulationParams sim_params) {
+__global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, BoundaryStrategy bs, SimulationParams sim_params) {
     // Shared memory for storing old and new field data locally for fast access
     // Stores old field and new field data (offset needed to access latter)
     T *gridData                 = shared_memory_proxy<T>();
     unsigned int newFieldOffset = (blockDim.x + 2U) * (blockDim.y + 2U);
 
     // Global thread indexing (current thread and axial neigbhours)
-    unsigned int globalIdX          = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned int globalIdY          = threadIdx.y + blockIdx.y * blockDim.y;
-    unsigned int globalOffset       = globalIdX + globalIdY * (field_extents.x + 2U);
-    unsigned int globalLeftOffset   = (globalIdX - 1U) + globalIdY * (field_extents.x + 2U);
-    unsigned int globalRightOffset  = (globalIdX + 1U) + globalIdY * (field_extents.x + 2U);
-    unsigned int globalUpOffset     = globalIdX + (globalIdY - 1U) * (field_extents.x + 2U);
-    unsigned int globalDownOffset   = globalIdX + (globalIdY + 1U) * (field_extents.x + 2U);
+    unsigned int globalIdX              = threadIdx.x + blockIdx.x * blockDim.x;
+    unsigned int globalIdY              = threadIdx.y + blockIdx.y * blockDim.y;
+    unsigned int globalVerticalStride   = field_extents.x + 2U; // There are this many elements per row of the grid (includes ghost cells)
+    unsigned int globalOffset           = globalIdX + globalIdY * globalVerticalStride;
+    unsigned int globalLeftOffset       = (globalIdX - 1U) + globalIdY * globalVerticalStride;
+    unsigned int globalRightOffset      = (globalIdX + 1U) + globalIdY * globalVerticalStride;
+    unsigned int globalUpOffset         = globalIdX + (globalIdY - 1U) * globalVerticalStride;
+    unsigned int globalDownOffset       = globalIdX + (globalIdY + 1U) * globalVerticalStride;
 
     // Thread status flags
-    bool validThread                = globalOffset < num_cells;                         // Thread is actually handling a cell within field bounds
-    bool handlingInterior           = 0U < globalIdX && globalIdX <= field_extents.x && // Thread is handling interior cell
-                                      0U < globalIdY && globalIdY <= field_extents.y;
+    bool validThread        = globalIdX <= field_extents.x + 1U && globalIdY <= field_extents.y + 1U;   // Thread is actually handling a cell within field bounds
+    bool handlingInterior   = 0U < globalIdX && globalIdX <= field_extents.x &&                         // Thread is handling interior cell
+                              0U < globalIdY && globalIdY <= field_extents.y;
     
     // Local thread indexing for shared memory (current thread and axial neigbhours)
     // Old field
@@ -127,18 +129,18 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, unsigne
 }
 
 template<typename FieldT, typename VelocityT>
-__global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field,
-                       uint2 field_extents, unsigned int num_cells,
+__global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity_field, uint2 field_extents,
                        BoundaryStrategy bs, SimulationParams sim_params) {
     // Global thread indexing (current thread and axial neigbhours)
-    unsigned int globalIdX          = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned int globalIdY          = threadIdx.y + blockIdx.y * blockDim.y;
-    unsigned int globalOffset       = globalIdX + globalIdY * (field_extents.x + 2U);
+    unsigned int globalIdX              = threadIdx.x + blockIdx.x * blockDim.x;
+    unsigned int globalIdY              = threadIdx.y + blockIdx.y * blockDim.y;
+    unsigned int globalVerticalStride   = field_extents.x + 2U; // There are this many elements per row of the grid (includes ghost cells)
+    unsigned int globalOffset           = globalIdX + globalIdY * globalVerticalStride;
 
     // Thread status flags
-    bool validThread                = globalOffset < num_cells;                         // Thread is actually handling a cell within field bounds
-    bool handlingInterior           = 0U < globalIdX && globalIdX <= field_extents.x && // Thread is handling interior cell
-                                      0U < globalIdY && globalIdY <= field_extents.y;
+    bool validThread        = globalIdX <= field_extents.x + 1U && globalIdY <= field_extents.y + 1U;   // Thread is actually handling a cell within field bounds
+    bool handlingInterior   = 0U < globalIdX && globalIdX <= field_extents.x &&                         // Thread is handling interior cell
+                              0U < globalIdY && globalIdY <= field_extents.y;
 
     // Timestep in both directions (adjust by field size)
     glm::vec2 timeStepAxial(sim_params.advectionMultiplier * sim_params.timeStep * field_extents.x,
@@ -152,14 +154,15 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
         
         // Bilinear interpolation of cell values
         // I tried texture samplers, man. They made my squares fly away, man
+        // Go to the commit with tag hardware-interp and hash 2a09909ff5260d843b4bc8ac591d6e9679598852 if you wanna try fixing my mistake(s)
         glm::uvec2 topLeft              = glm::uvec2(backTrace);
         glm::uvec2 bottomRight          = glm::uvec2(backTrace + 1.0f);
         float rightProportion           = backTrace.x - topLeft.x;
         float downProportion            = backTrace.y - topLeft.y;
-        unsigned int topLeftOffset      = topLeft.x     +   topLeft.y * (field_extents.x + 2U);
-        unsigned int topRightOffset     = bottomRight.x +   topLeft.y * (field_extents.x + 2U);
-        unsigned int bottomLeftOffset   = topLeft.x     +   bottomRight.y * (field_extents.x + 2U);
-        unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * (field_extents.x + 2U);
+        unsigned int topLeftOffset      = topLeft.x     +   topLeft.y * globalVerticalStride;
+        unsigned int topRightOffset     = bottomRight.x +   topLeft.y * globalVerticalStride;
+        unsigned int bottomLeftOffset   = topLeft.x     +   bottomRight.y * globalVerticalStride;
+        unsigned int bottomRightOffset  = bottomRight.x +   bottomRight.y * globalVerticalStride;
         FieldT topInterpolation         = glm::mix(old_field[topLeftOffset], old_field[topRightOffset], rightProportion);
         FieldT bottomInterpolation      = glm::mix(old_field[bottomLeftOffset], old_field[bottomRightOffset], rightProportion);
         new_field[globalOffset]         = glm::mix(topInterpolation, bottomInterpolation, downProportion);
@@ -170,10 +173,10 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
     
     // Handle boundary cells
     if (validThread && !handlingInterior) {
-        unsigned int globalLeftOffset   = (globalIdX - 1U) + globalIdY * (field_extents.x + 2U);
-        unsigned int globalRightOffset  = (globalIdX + 1U) + globalIdY * (field_extents.x + 2U);
-        unsigned int globalUpOffset     = globalIdX + (globalIdY - 1U) * (field_extents.x + 2U);
-        unsigned int globalDownOffset   = globalIdX + (globalIdY + 1U) * (field_extents.x + 2U);
+        unsigned int globalLeftOffset   = (globalIdX - 1U) + globalIdY * globalVerticalStride;
+        unsigned int globalRightOffset  = (globalIdX + 1U) + globalIdY * globalVerticalStride;
+        unsigned int globalUpOffset     = globalIdX + (globalIdY - 1U) * globalVerticalStride;
+        unsigned int globalDownOffset   = globalIdX + (globalIdY + 1U) * globalVerticalStride;
         handle_boundary(new_field, field_extents, bs,
                         globalIdX, globalIdY,
                         globalOffset, globalLeftOffset, globalRightOffset, globalUpOffset, globalDownOffset);

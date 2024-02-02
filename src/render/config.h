@@ -5,10 +5,11 @@
 #include <stdint.h>
 
 struct SimulationParams {
-    float timeStep                = 1e-1f;
-    float diffusionRate           = 2.0f;
-    uint32_t diffusionSimSteps    = 32U;
-    float advectionMultiplier     = 1e-3f;
+    float timeStep              = 1e-1f;
+    float diffusionRate         = 2.0f;
+    uint32_t diffusionSimSteps  = 32U;
+    float advectionMultiplier   = 1e-3f;
+    uint32_t projectionSimSteps = 32U; 
 };
 
 struct RenderConfig {
