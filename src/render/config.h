@@ -6,10 +6,10 @@
 
 struct SimulationParams {
     float timeStep              = 1e-2f;
-    float diffusionRate         = 2.0f;
-    uint32_t diffusionSimSteps  = 32U;
+    float diffusionRate         = 1e2f;
+    uint32_t diffusionSimSteps  = 16U;
     float advectionMultiplier   = 1e1f;
-    uint32_t projectionSimSteps = 32U; 
+    uint32_t projectionSimSteps = 16U; 
 };
 
 struct RenderConfig {
@@ -17,7 +17,7 @@ struct RenderConfig {
     bool renderDensitySources   = false;
     bool renderVelocitySources  = false;
     bool renderDensities        = false;
-    bool renderVelocities       = true;
+    bool renderVelocities       = false;
 
     // Simulation step toggles
     bool densityAddSources  = false;

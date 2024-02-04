@@ -105,6 +105,41 @@ __global__ void project(glm::vec2* velocities, uint2 field_extents, SimulationPa
         derivProjFields[shared.offsetOld]  = -0.5f * hysteresis * (velocities[global.rightOffset].x    - velocities[global.leftOffset].x +
                                                                    velocities[global.upOffset].y       - velocities[global.downOffset].y);
         derivProjFields[shared.offsetNew]  = 0.0f;
+
+        // Corner and edge cells additionally zero out neighbouring cells' projection data if they do not lie on a field boundary
+        CellLocationType2d locationType = determineLocationType();
+        switch (locationType) {
+                // Corners
+                case TopLeft:
+                    derivProjFields[shared.upOffsetNew]      = 0.0f;
+                    derivProjFields[shared.leftOffsetNew]    = 0.0f;
+                    break;
+                case TopRight:
+                    derivProjFields[shared.upOffsetNew]      = 0.0f;;
+                    derivProjFields[shared.rightOffsetNew]   = 0.0f;;
+                    break;
+                case BottomLeft:
+                    derivProjFields[shared.downOffsetNew]    = 0.0f;;
+                    derivProjFields[shared.leftOffsetNew]    = 0.0f;;
+                    break;
+                case BottomRight:
+                    derivProjFields[shared.downOffsetNew]    = 0.0f;;
+                    derivProjFields[shared.rightOffsetNew]   = 0.0f;;
+                    break;
+                // Edges
+                case Top:
+                    derivProjFields[shared.upOffsetNew]      = 0.0f;;
+                    break;
+                case Bottom:
+                    derivProjFields[shared.downOffsetNew]    = 0.0f;;
+                    break;
+                case Left:
+                    derivProjFields[shared.leftOffsetNew]    = 0.0f;;
+                    break;
+                case Right:
+                    derivProjFields[shared.rightOffsetNew]   = 0.0f;;
+                    break;
+            }
     }
     __syncthreads();
     if (statusFlags.validThread && !statusFlags.handlingInterior) {
