@@ -33,4 +33,4 @@ target_link_libraries(SolverExec PRIVATE FluidLib)
 set_property(TARGET SolverExec PROPERTY CUDA_ARCHITECTURES native)
 
 # Preprocessor definitions for paths
-target_compile_definitions(FluidLib PUBLIC "-DSHADERS_DIR=\"${CMAKE_CURRENT_LIST_DIR}/shaders/\"")
+target_compile_definitions(FluidLib PUBLIC "-DSHADERS_DIR=\"${CMAKE_CURRENT_LIST_DIR}/shaders/\"" "-DRESOURCES_DIR=\"${CMAKE_CURRENT_LIST_DIR}/resources/\"")

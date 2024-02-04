@@ -11,12 +11,12 @@ DISABLE_WARNINGS_POP()
 #include <device/field_manager.cuh>
 #include <device/fluid_sim.cuh>
 #include <render/config.h>
-#include <render/field_renderer.h>
+#include <render/renderer.h>
+#include <render/texture.h>
 #include <ui/callbacks.hpp>
 #include <ui/menu.h>
 #include <utils/constants.h>
 #include <utils/cuda_utils.cuh>
-#include <Windows.h>
 
 
 int main(int argc, char* argv[]) {
@@ -25,12 +25,15 @@ int main(int argc, char* argv[]) {
     Window m_window(utils::WINDOW_TITLE, glm::ivec2(utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT), OpenGLVersion::GL46);
     RenderConfig m_renderConfig;
     ui::Menu m_menu(m_renderConfig);
-    FieldRenderer m_fieldRenderer(m_renderConfig, fieldExtents.x, fieldExtents.y);
+    TextureManager m_textureManager;
+    m_textureManager.addTexture(utils::RESOURCES_DIR_PATH / "cursor.png");
+    Renderer m_fieldRenderer(m_renderConfig, m_window, m_textureManager.getTexture("cursor.png"), fieldExtents.x, fieldExtents.y);
     FieldManager m_fieldManager(m_renderConfig, fieldExtents,
                                 m_fieldRenderer.getSourcesDensityTex(),     m_fieldRenderer.getDensitiesTex(),
                                 m_fieldRenderer.getSourcesVelocityTex(),    m_fieldRenderer.getVelocitiesTex());
-    
-    // Set sources
+
+
+    // Set initial sources
     for (unsigned int i = 0U; i < 50U; i++) {
         for (unsigned int j = 0U; j < 50U; j++) {
             m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec4(0.2f, 0.0f, 0.0f, 0.0f));
@@ -48,6 +51,10 @@ int main(int argc, char* argv[]) {
     m_window.registerMouseMoveCallback(ui::onMouseMove);
     m_window.registerMouseButtonCallback(ui::mouseButtonCallback);
 
+    // Enable additive blending based on source (incoming) alpha to draw brush billboard
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     // Main loop
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     while (!m_window.shouldClose()) {
@@ -59,16 +66,17 @@ int main(int argc, char* argv[]) {
         // Write fields to OpenGL textures
         m_fieldManager.copyFieldsToTextures();
 
-        // Clear the screen
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         // Process controls
         ImGuiIO io = ImGui::GetIO();
         m_window.updateInput();
         if (!io.WantCaptureMouse) { /* Non ImGUI UI code */ }
 
-        // Bind render shader, set uniforms, and render
-        m_fieldRenderer.render();
+        // Clear the screen
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Render fields and render brush if cursor is not over an ImGUI window
+        m_fieldRenderer.renderFields();
+        if (!io.WantCaptureMouse) { m_fieldRenderer.renderBrush(); }
 
         // Draw UI
         m_menu.draw();

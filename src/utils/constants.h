@@ -27,7 +27,8 @@ namespace utils {
     constexpr std::string_view WINDOW_TITLE = "CUDA Fluid Solver";
 
     // Resource directories 
-    const std::filesystem::path SHADERS_DIR_PATH = SHADERS_DIR;
+    const std::filesystem::path SHADERS_DIR_PATH    = SHADERS_DIR;
+    const std::filesystem::path RESOURCES_DIR_PATH  = RESOURCES_DIR;
 }
 
 #endif

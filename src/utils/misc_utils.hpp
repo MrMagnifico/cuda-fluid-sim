@@ -14,6 +14,13 @@ DISABLE_WARNINGS_POP()
 #include <vector>
 
 namespace utils {
+    /*************** Miscellaneous ****************/
+    template<typename T>
+    T mapRange(T value, T domainMin, T domainMax, T rangeMin, T toMax) {
+        T percentage = (value - domainMin) / (domainMax - domainMin);   // Calculate the percentage of the value within the input range
+        return rangeMin + percentage * (toMax - rangeMin);              // Map the percentage to the output range
+    }
+
     /********** Random number generation **********/
     static std::random_device randomDevice;                 // Will be used to obtain a seed for the random number engine
     static std::mt19937 randomGenerator(randomDevice());    // Standard mersenne_twister_engine seeded with randomDevice

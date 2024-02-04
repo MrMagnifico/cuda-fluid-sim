@@ -1,5 +1,5 @@
-#ifndef _FIELD_RENDERER_H_
-#define _FIELD_RENDERER_H_
+#ifndef _RENDERER_H_
+#define _RENDERER_H_
 
 
 #include <framework/disable_all_warnings.h>
@@ -8,16 +8,21 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/vec2.hpp>
 DISABLE_WARNINGS_POP()
 
-#include <render/config.h>
 #include <framework/shader.h>
+#include <framework/window.h>
+#include <render/config.h>
+#include <render/texture.h>
 
 
-class FieldRenderer {
+class Renderer {
     public:
-        FieldRenderer(const RenderConfig& renderConfig, unsigned int fieldWidth, unsigned int fieldHeight);
-        ~FieldRenderer();
+        Renderer(const RenderConfig& renderConfig, const Window& window,
+                      std::weak_ptr<const Texture> brushTex,
+                      unsigned int fieldWidth, unsigned int fieldHeight);
+        ~Renderer();
 
-        void render();
+        void renderFields();
+        void renderBrush();
 
         GLuint getSourcesDensityTex() const     { return m_sourcesDensityTex; }
         GLuint getDensitiesTex() const          { return m_densitiesTex; }
@@ -26,12 +31,14 @@ class FieldRenderer {
 
     private:
         const RenderConfig& m_renderConfig;
+        const Window& m_window;
 
         glm::uvec2 m_fieldDims;
         GLuint m_sourcesDensityTex, m_densitiesTex, m_sourcesVelocityTex, m_velocitiesTex;
-        Shader m_quadHdr;
+        std::weak_ptr<const Texture> m_brushTex;
+        Shader m_brushBillboard, m_quadHdr;
 
-        void initShaderProgram();
+        void initShaderPrograms();
         void initTextures();
 };
 

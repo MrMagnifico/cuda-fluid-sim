@@ -12,6 +12,10 @@ struct SimulationParams {
     uint32_t projectionSimSteps = 16U; 
 };
 
+struct BrushParams {
+    float scale = 0.1f;
+};
+
 struct RenderConfig {
     // What to render
     bool renderDensitySources   = false;
@@ -30,6 +34,9 @@ struct RenderConfig {
 
     // Simulation parameters
     SimulationParams simulationParams;
+
+    // Brush parameters
+    BrushParams brushParams;
     
     // HDR tonemapping and gamma correction
     bool enableHdr  = true;

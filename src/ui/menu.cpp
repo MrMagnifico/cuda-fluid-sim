@@ -20,6 +20,7 @@ void ui::Menu::draw() {
     
     drawSimControlsTab();
     drawRenderTab();
+    drawBrushTab();
 
     ImGui::EndTabBar();
     ImGui::End();
@@ -87,4 +88,12 @@ void ui::Menu::drawHdrControls() {
     ImGui::Checkbox("Enable HDR", &m_renderConfig.enableHdr);
     ImGui::InputFloat("Exposure", &m_renderConfig.exposure, 0.1f, 1.0f, "%.1f");
     ImGui::InputFloat("Gamma", &m_renderConfig.gamma, 0.1f, 1.0f, "%.1f");
+}
+
+void ui::Menu::drawBrushTab() {
+    if (ImGui::BeginTabItem("Brush")) {
+        ImGui::SliderFloat("Size", &m_renderConfig.brushParams.scale, 0.03f, 0.5f, "%.2f");
+
+        ImGui::EndTabItem();
+    }
 }

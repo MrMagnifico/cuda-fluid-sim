@@ -106,7 +106,7 @@ __global__ void project(glm::vec2* velocities, uint2 field_extents, SimulationPa
                                                                    velocities[global.upOffset].y       - velocities[global.downOffset].y);
         derivProjFields[shared.offsetNew]  = 0.0f;
 
-        // Corner and edge cells additionally zero out neighbouring cells' projection data if they do not lie on a field boundary
+        // Corner and edge cells additionally zero out neighbouring cells' projection data
         CellLocationType2d locationType = determineLocationType();
         switch (locationType) {
                 // Corners
