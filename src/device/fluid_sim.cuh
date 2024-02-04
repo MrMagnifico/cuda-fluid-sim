@@ -36,7 +36,7 @@ struct SharedIndexing {
 // Flags dictating thread operation
 struct StatusFlags {
     bool validThread;       // Thread is actually handling a cell within field bounds
-    bool handlingInterior;  // Thread is handling interior cell
+    bool handlingInterior;  // Thread is handling interior cell (i.e. not one of the four extraneous boundaries)
 };
 
 

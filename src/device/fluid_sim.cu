@@ -25,7 +25,7 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
     global_to_shared(gridData, old_field, new_field, statusFlags, global, shared);
 
     // Simulation parameters
-    float diffSpeed         = sim_params.timeStep * sim_params.diffusionRate * field_extents.x * field_extents.y;
+    float diffSpeed         = sim_params.timeStep * sim_params.diffusionRate;
     float relaxationDenom   = 1.0f + (4.0f * diffSpeed);
 
     for (unsigned int step = 0U; step < sim_params.diffusionSimSteps; step++) {
@@ -36,8 +36,6 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
                                                        gridData[shared.rightOffsetNew] +
                                                        gridData[shared.upOffsetNew] +
                                                        gridData[shared.downOffsetNew])) / relaxationDenom; }
-
-        // Ensure simulation step is fully carried out
         __syncthreads();
         
         // Handle boundary cells
@@ -46,6 +44,7 @@ __global__ void diffuse(T* old_field, T* new_field, uint2 field_extents, Boundar
                             global.idX, global.idY,
                             shared.offsetNew, shared.leftOffsetNew, shared.rightOffsetNew, shared.upOffsetNew, shared.downOffsetNew);
         }
+        __syncthreads();
     }
 
     // Write new field value to global memory
@@ -58,15 +57,12 @@ __global__ void advect(FieldT* old_field, FieldT* new_field, VelocityT* velocity
     GlobalIndexing global   = generate_global_indices(field_extents);
     StatusFlags statusFlags = generate_status_flags(global.idX, global.idY, field_extents);
 
-    // Timestep in both directions (adjust by field size)
-    glm::vec2 timeStepAxial(sim_params.advectionMultiplier * sim_params.timeStep * field_extents.x,
-                            sim_params.advectionMultiplier * sim_params.timeStep * field_extents.y);
-    
+    float advectionTimeStep = sim_params.advectionMultiplier * sim_params.timeStep;
     if (statusFlags.handlingInterior) {
         // Trace backwards according to velocity fields to find coordinates whose density ends up in the cell managed by this 
         VelocityT velocity  = velocity_field[global.offset];
-        glm::vec2 backTrace = glm::vec2(global.idX - (timeStepAxial.x * velocity.x),
-                                        global.idY - (timeStepAxial.y * velocity.y));
+        glm::vec2 backTrace = glm::vec2(global.idX - (advectionTimeStep * velocity.x),
+                                        global.idY - (advectionTimeStep * velocity.y));
         backTrace           = glm::clamp(backTrace, glm::vec2(0.0f), glm::vec2(field_extents.x, field_extents.y));
         
         // Bilinear interpolation of cell values
@@ -128,8 +124,6 @@ __global__ void project(glm::vec2* velocities, uint2 field_extents, SimulationPa
                                                  derivProjFields[shared.leftOffsetNew]    + derivProjFields[shared.rightOffsetNew]   +
                                                  derivProjFields[shared.upOffsetNew]      + derivProjFields[shared.downOffsetNew]) / 4.0f;
         }
-
-        // Ensure simulation step is fully carried out
         __syncthreads();
         
         // Handle boundary cells
@@ -138,6 +132,7 @@ __global__ void project(glm::vec2* velocities, uint2 field_extents, SimulationPa
                             global.idX, global.idY,
                             shared.offsetNew, shared.leftOffsetNew, shared.rightOffsetNew, shared.upOffsetNew, shared.downOffsetNew);
         }
+        __syncthreads();
     }
 
     // Compute mass-conserved velocity field from projection field
@@ -203,42 +198,53 @@ __device__ void global_to_shared(T* shared_mem, T* first_field, T* second_field,
     if (status_flags.validThread) {
         CellLocationType2d locationType = determineLocationType();
 
-        // All threads transfer their corresponding cell's data for both fields
+        // All threads transfer their corresponding cell's data
         shared_mem[shared.offsetOld]    = first_field[global.offset];
-        shared_mem[shared.upOffsetNew]  = second_field[global.offset];
+        shared_mem[shared.offsetNew]    = second_field[global.offset];
 
-        // Corner and edge cells additionally transfer neighbouring cells' data in the new field for Gauss-Seidel iterations
-        // if they do not lie on a field boundary
+        // Corner and edge cells additionally transfer neighbouring cells' data if they do not lie on a field boundary
         if (status_flags.handlingInterior) {
             switch (locationType) {
                 // Corners
                 case TopLeft:
+                    shared_mem[shared.upOffsetOld]      = first_field[global.upOffset];
+                    shared_mem[shared.leftOffsetOld]    = first_field[global.leftOffset];
                     shared_mem[shared.upOffsetNew]      = second_field[global.upOffset];
                     shared_mem[shared.leftOffsetNew]    = second_field[global.leftOffset];
                     break;
                 case TopRight:
+                    shared_mem[shared.upOffsetOld]      = first_field[global.upOffset];
+                    shared_mem[shared.rightOffsetOld]   = first_field[global.rightOffset];
                     shared_mem[shared.upOffsetNew]      = second_field[global.upOffset];
                     shared_mem[shared.rightOffsetNew]   = second_field[global.rightOffset];
                     break;
                 case BottomLeft:
+                    shared_mem[shared.downOffsetOld]    = first_field[global.downOffset];
+                    shared_mem[shared.leftOffsetOld]    = first_field[global.leftOffset];
                     shared_mem[shared.downOffsetNew]    = second_field[global.downOffset];
                     shared_mem[shared.leftOffsetNew]    = second_field[global.leftOffset];
                     break;
                 case BottomRight:
+                    shared_mem[shared.downOffsetOld]    = first_field[global.downOffset];
+                    shared_mem[shared.rightOffsetOld]   = first_field[global.rightOffset];
                     shared_mem[shared.downOffsetNew]    = second_field[global.downOffset];
                     shared_mem[shared.rightOffsetNew]   = second_field[global.rightOffset];
                     break;
                 // Edges
                 case Top:
+                    shared_mem[shared.upOffsetOld]      = first_field[global.upOffset];
                     shared_mem[shared.upOffsetNew]      = second_field[global.upOffset];
                     break;
                 case Bottom:
+                    shared_mem[shared.downOffsetOld]    = first_field[global.downOffset];
                     shared_mem[shared.downOffsetNew]    = second_field[global.downOffset];
                     break;
                 case Left:
+                    shared_mem[shared.leftOffsetOld]    = first_field[global.leftOffset];
                     shared_mem[shared.leftOffsetNew]    = second_field[global.leftOffset];
                     break;
                 case Right:
+                    shared_mem[shared.rightOffsetOld]   = first_field[global.rightOffset];
                     shared_mem[shared.rightOffsetNew]   = second_field[global.rightOffset];
                     break;
             }

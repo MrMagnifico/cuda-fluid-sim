@@ -16,6 +16,7 @@ DISABLE_WARNINGS_POP()
 #include <ui/menu.h>
 #include <utils/constants.h>
 #include <utils/cuda_utils.cuh>
+#include <Windows.h>
 
 
 int main(int argc, char* argv[]) {

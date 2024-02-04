@@ -54,10 +54,10 @@ void ui::Menu::drawSimTogglesControls() {
 }
 
 void ui::Menu::drawSimParamsControls() {
-    ImGui::InputFloat("Time step", &m_renderConfig.simulationParams.timeStep, 0.01f, 0.1f, "%.2f");
+    ImGui::InputFloat("Time step", &m_renderConfig.simulationParams.timeStep, 0.001f, 0.01f, "%.3f");
     ImGui::InputFloat("Diffusion rate", &m_renderConfig.simulationParams.diffusionRate, 0.01f, 0.1f, "%.2f");
     ImGui::SliderInt("Diffusion simulation steps", reinterpret_cast<int*>(&m_renderConfig.simulationParams.diffusionSimSteps), 1, 128);
-    ImGui::InputFloat("Advection multiplier", &m_renderConfig.simulationParams.advectionMultiplier, 0.001f, 0.01f, "%.3f");
+    ImGui::InputFloat("Advection multiplier", &m_renderConfig.simulationParams.advectionMultiplier, 0.1f, 1.0f, "%.1f");
 }
 
 void ui::Menu::drawRenderTab() {
