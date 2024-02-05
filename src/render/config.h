@@ -24,6 +24,7 @@ struct BrushParams {
     BrushEditMode brushEditMode = Densities;
     glm::vec4 densityDrawColor  = { 1.0f, 0.0f, 0.0f, 1.0f }; 
     glm::vec2 velocityDrawValue = { 1.0f, 1.0f };
+    float eraseIntensity        = 0.1f;
 };
 
 struct RenderConfig {

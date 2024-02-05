@@ -8,10 +8,13 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/vec4.hpp>
 DISABLE_WARNINGS_POP()
 
+enum UpdateType { Add = 0, Remove };
+
 template<typename T>
 __global__ void set_source(T* sources, uint2 coords, T val, uint2 field_extents);
 
 template<typename T>
-__global__ void update_field(T* field, T value, uint2 field_extents, uint2 top_left, uint2 bottom_right);
+__global__ void update_field(T* field, T value, uint2 field_extents, uint2 top_left, uint2 bottom_right,
+                             UpdateType update_type, bool clampToZero);
 
 #endif

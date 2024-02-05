@@ -70,27 +70,66 @@ void FieldManager::copyFieldsToTextures() {
 }
 
 void FieldManager::mouseButtonCallback(int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)   { applyBrushAdditive(); }
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)  { applyBrushErase(); }
+}
+
+void FieldManager::mouseMoveCallback(glm::vec2 cursorPos) {
+    if (m_window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT))  { applyBrushAdditive(); }
+    if (m_window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) { applyBrushErase(); }
+}
+
+void FieldManager::applyBrushAdditive() {
     BoundingBox brushBB = brushBoundingBox();
     dim3 brushGrid      = brushGridDims(brushBB);
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        switch (m_renderConfig.brushParams.brushEditMode) {
-            case Densities: {
-                update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densities, m_renderConfig.brushParams.densityDrawColor,
-                                                               m_fieldExtents, brushBB.topLeft, brushBB.bottomRight);
-            } break;
-            case DensitySources: {
-                update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densitySources, m_renderConfig.brushParams.densityDrawColor,
-                                                               m_fieldExtents, brushBB.topLeft, brushBB.bottomRight);
-            } break;
-            case Velocities: {
-                update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_velocities, m_renderConfig.brushParams.velocityDrawValue,
-                                                               m_fieldExtents, brushBB.topLeft, brushBB.bottomRight);
-            } break;
-            case VelocitySources: {
-                update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_velocitySources, m_renderConfig.brushParams.velocityDrawValue,
-                                                               m_fieldExtents, brushBB.topLeft, brushBB.bottomRight);
-            } break;
-        }
+    switch (m_renderConfig.brushParams.brushEditMode) {
+        case Densities: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densities, m_renderConfig.brushParams.densityDrawColor,
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Add, false);
+        } break;
+        case DensitySources: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densitySources, m_renderConfig.brushParams.densityDrawColor,
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Add, false);
+        } break;
+        case Velocities: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_velocities, m_renderConfig.brushParams.velocityDrawValue,
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Add, false);
+        } break;
+        case VelocitySources: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_velocitySources, m_renderConfig.brushParams.velocityDrawValue,
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Add, false);
+        } break;
+    }
+}
+
+void FieldManager::applyBrushErase() {
+    BoundingBox brushBB = brushBoundingBox();
+    dim3 brushGrid      = brushGridDims(brushBB);
+    switch (m_renderConfig.brushParams.brushEditMode) {
+        case Densities: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densities, glm::vec4(m_renderConfig.brushParams.eraseIntensity),
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Remove, true);
+        } break;
+        case DensitySources: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densitySources, glm::vec4(m_renderConfig.brushParams.eraseIntensity),
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Remove, true);
+        } break;
+        case Velocities: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_velocities, m_renderConfig.brushParams.velocityDrawValue,
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Remove, false);
+        } break;
+        case VelocitySources: {
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_velocitySources, m_renderConfig.brushParams.velocityDrawValue,
+                                                           m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
+                                                           Remove, false);
+        } break;
     }
 }
 

@@ -26,6 +26,7 @@ class FieldManager {
         void simulate();
 
         void mouseButtonCallback(int button, int action, int mods);
+        void mouseMoveCallback(glm::vec2 cursorPos);
         void setSourceDensity(uint2 coords, glm::vec4 val);
         void setSourceVelocity(uint2 coords, glm::vec2 val);
 
@@ -46,6 +47,8 @@ class FieldManager {
 
         BoundingBox brushBoundingBox();
         dim3 brushGridDims(BoundingBox boundingBox);
+        void applyBrushAdditive();
+        void applyBrushErase();
 };
 
 

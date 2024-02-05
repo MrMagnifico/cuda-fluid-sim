@@ -54,12 +54,9 @@ int main(int argc, char* argv[]) {
 
     // Register functional UI callbacks
     // Lambda to bind relevant objects in callback's scope. Fuck me
-    m_window.registerKeyCallback([&m_renderConfig](int key, int scancode, int action, int mods) {
-        m_renderConfig.keyCallback(key, scancode, action, mods);
-    });
-    m_window.registerMouseButtonCallback([&m_fieldManager](int button, int action, int mods) {
-        m_fieldManager.mouseButtonCallback(button, action, mods);
-    });
+    m_window.registerKeyCallback([&m_renderConfig](int key, int scancode, int action, int mods) { m_renderConfig.keyCallback(key, scancode, action, mods); });
+    m_window.registerMouseMoveCallback([&m_fieldManager](glm::vec2 cursorPos) { m_fieldManager.mouseMoveCallback(cursorPos); });
+    m_window.registerMouseButtonCallback([&m_fieldManager](int button, int action, int mods) { m_fieldManager.mouseButtonCallback(button, action, mods); });
 
     // Enable additive blending based on source (incoming) alpha to draw brush billboard
     glEnable(GL_BLEND);
