@@ -54,6 +54,9 @@ struct RenderConfig {
     float exposure  = 1.0f;
     float gamma     = 2.2f;
 
+    // Miscellaneous
+    bool enableVsync = false;
+
     void keyCallback(int key, int scancode, int action, int mods);
 };
 

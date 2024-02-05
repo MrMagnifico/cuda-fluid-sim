@@ -73,7 +73,7 @@ Window::Window(std::string_view title, const glm::ivec2& windowSize, OpenGLVersi
         exit(1);
     }
     glfwMakeContextCurrent(m_pWindow);
-    glfwSwapInterval(1); // Enable vsync. To disable vsync set this to 0.
+    glfwSwapInterval(0); // Disable vsync. To enable vsync set this to 1.
 
     float xScale, yScale;
     glfwGetWindowContentScale(m_pWindow, &xScale, &yScale);

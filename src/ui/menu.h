@@ -22,6 +22,7 @@ namespace ui {
 
         void drawFieldDrawControls();        
         void drawHdrControls();
+        void drawMiscControls();
     };
 
 }

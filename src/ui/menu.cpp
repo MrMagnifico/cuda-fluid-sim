@@ -2,6 +2,7 @@
 
 #include <framework/disable_all_warnings.h>
 DISABLE_WARNINGS_PUSH()
+#include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui/imgui.h>
 #include <nativefiledialog/nfd.h>
@@ -76,6 +77,12 @@ void ui::Menu::drawRenderTab() {
         ImGui::Text("HDR");
         drawHdrControls();
 
+        ImGui::NewLine();
+        ImGui::Separator();
+
+        ImGui::Text("Miscellaneous");
+        drawMiscControls();
+
         ImGui::EndTabItem();
     }
 }
@@ -91,6 +98,10 @@ void ui::Menu::drawHdrControls() {
     ImGui::Checkbox("Enable HDR", &m_renderConfig.enableHdr);
     ImGui::InputFloat("Exposure", &m_renderConfig.exposure, 0.1f, 1.0f, "%.1f");
     ImGui::InputFloat("Gamma", &m_renderConfig.gamma, 0.1f, 1.0f, "%.1f");
+}
+
+void ui::Menu::drawMiscControls() {
+    if (ImGui::Checkbox("VSync", &m_renderConfig.enableVsync)) { glfwSwapInterval(m_renderConfig.enableVsync); }
 }
 
 void ui::Menu::drawBrushTab() {
