@@ -16,9 +16,9 @@ DISABLE_WARNINGS_POP()
 namespace utils {
     /*************** Miscellaneous ****************/
     template<typename T>
-    T mapRange(T value, T domainMin, T domainMax, T rangeMin, T toMax) {
+    T mapRange(T value, T domainMin, T domainMax, T rangeMin, T rangeMax) {
         T percentage = (value - domainMin) / (domainMax - domainMin);   // Calculate the percentage of the value within the input range
-        return rangeMin + percentage * (toMax - rangeMin);              // Map the percentage to the output range
+        return rangeMin + percentage * (rangeMax - rangeMin);           // Map the percentage to the output range
     }
 
     /********** Random number generation **********/

@@ -1,6 +1,11 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
+#include <framework/disable_all_warnings.h>
+DISABLE_WARNINGS_PUSH()
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
+DISABLE_WARNINGS_POP()
 
 #include <stdint.h>
 
@@ -13,14 +18,15 @@ struct SimulationParams {
 };
 
 struct BrushParams {
-    float scale = 0.1f;
+    float scale                 = 0.1f;
+    glm::vec4 densityDrawColor  = { 1.0f, 0.0f, 0.0f, 1.0f }; 
 };
 
 struct RenderConfig {
     // What to render
     bool renderDensitySources   = false;
     bool renderVelocitySources  = false;
-    bool renderDensities        = false;
+    bool renderDensities        = true;
     bool renderVelocities       = false;
 
     // Simulation step toggles

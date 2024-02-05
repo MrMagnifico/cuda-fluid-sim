@@ -93,7 +93,7 @@ void ui::Menu::drawHdrControls() {
 void ui::Menu::drawBrushTab() {
     if (ImGui::BeginTabItem("Brush")) {
         ImGui::SliderFloat("Size", &m_renderConfig.brushParams.scale, 0.03f, 0.5f, "%.2f");
-
+        ImGui::ColorEdit3("Density brush colour", glm::value_ptr(m_renderConfig.brushParams.densityDrawColor));
         ImGui::EndTabItem();
     }
 }

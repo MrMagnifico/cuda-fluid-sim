@@ -28,7 +28,8 @@ int main(int argc, char* argv[]) {
     TextureManager m_textureManager;
     m_textureManager.addTexture(utils::RESOURCES_DIR_PATH / "cursor.png");
     Renderer m_fieldRenderer(m_renderConfig, m_window, m_textureManager.getTexture("cursor.png"), fieldExtents.x, fieldExtents.y);
-    FieldManager m_fieldManager(m_renderConfig, fieldExtents,
+    FieldManager m_fieldManager(m_renderConfig, m_window,
+                                fieldExtents,
                                 m_fieldRenderer.getSourcesDensityTex(),     m_fieldRenderer.getDensitiesTex(),
                                 m_fieldRenderer.getSourcesVelocityTex(),    m_fieldRenderer.getVelocitiesTex());
 
@@ -50,6 +51,9 @@ int main(int argc, char* argv[]) {
     m_window.registerKeyCallback(ui::keyCallback);
     m_window.registerMouseMoveCallback(ui::onMouseMove);
     m_window.registerMouseButtonCallback(ui::mouseButtonCallback);
+    m_window.registerMouseButtonCallback([&m_fieldManager](int button, int action, int mods) { // Lambda to bind field manager in callback's scope. Fuck me
+        m_fieldManager.mouseButtonCallback(button, action, mods);
+    });
 
     // Enable additive blending based on source (incoming) alpha to draw brush billboard
     glEnable(GL_BLEND);
@@ -67,15 +71,14 @@ int main(int argc, char* argv[]) {
         m_fieldManager.copyFieldsToTextures();
 
         // Process controls
-        ImGuiIO io = ImGui::GetIO();
         m_window.updateInput();
-        if (!io.WantCaptureMouse) { /* Non ImGUI UI code */ }
 
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Render fields and render brush if cursor is not over an ImGUI window
         m_fieldRenderer.renderFields();
+        ImGuiIO io = ImGui::GetIO();
         if (!io.WantCaptureMouse) { m_fieldRenderer.renderBrush(); }
 
         // Draw UI

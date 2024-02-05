@@ -1,22 +1,29 @@
 #include "field_manager.cuh"
 
+#include <framework/disable_all_warnings.h>
+DISABLE_WARNINGS_PUSH()
+#include <GLFW/glfw3.h>
+DISABLE_WARNINGS_POP()
+
 #include <device/fluid_sim.cuh>
 #include <device/fluid_sim.cu>
 #include <device/gl_interop.cuh>
 #include <device/gl_interop.cu>
-#include <device/sources.cuh>
-#include <device/sources.cu>
+#include <device/field_edit.cuh>
+#include <device/field_edit.cu>
 #include <utils/constants.h>
 #include <utils/cuda_utils.cuh>
 
 #include <array>
 #include <cuda_gl_interop.h>
 
-FieldManager::FieldManager(const RenderConfig& renderConfig, const uint2 fieldExtents,
+FieldManager::FieldManager(const RenderConfig& renderConfig, const Window &window,
+                           const uint2 fieldExtents,
                            const GLuint sourcesDensityTex, const GLuint densitiesTex,
                            const GLuint sourcesVelocityTex, const GLuint velocitiesTex)
     : m_fieldExtents(fieldExtents)
-    , m_renderConfig(renderConfig) {
+    , m_renderConfig(renderConfig)
+    , m_window(window) {
     // Calculate memory sizes and dimensions
     m_paddedfieldExtents    = uint2(fieldExtents.x + 2UL, fieldExtents.y + 2UL);
     m_gridDims              = dim3((m_paddedfieldExtents.x / utils::BLOCK_SIZE.x) + 1U, (m_paddedfieldExtents.y / utils::BLOCK_SIZE.y) + 1U);   // Grid dimensions needed for workload distribution
@@ -62,6 +69,15 @@ void FieldManager::copyFieldsToTextures() {
     CUDA_ERROR(cudaGraphicsUnmapResources(1, &m_velocitiesResource));
 }
 
+void FieldManager::mouseButtonCallback(int button, int action, int mods) {
+    BoundingBox brushBB = brushBoundingBox();
+    dim3 brushGrid      = brushGridDims(brushBB);
+    if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densities, m_renderConfig.brushParams.densityDrawColor,
+                                                       m_fieldExtents, brushBB.topLeft, brushBB.bottomRight);
+    }
+}
+
 void FieldManager::setSourceDensity(uint2 coords, glm::vec4 val) { set_source<<<1, 1>>>(m_densitySources, coords, val, m_paddedfieldExtents); }
 
 void FieldManager::setSourceVelocity(uint2 coords, glm::vec2 val) { set_source<<<1, 1>>>(m_velocitySources, coords, val, m_paddedfieldExtents); }
@@ -105,4 +121,27 @@ void FieldManager::velocityStep() {
             project<<<m_gridDims, utils::BLOCK_SIZE, sharedMemProjectSize>>>(m_velocities, m_fieldExtents, m_renderConfig.simulationParams);
         }
     }
+}
+
+BoundingBox FieldManager::brushBoundingBox() {
+    // Compute unbounded bounding box based on current cursor position
+    glm::vec2 cursorPosition    = m_window.getNormalizedCursorPos() * glm::vec2(m_fieldExtents.x, m_fieldExtents.y);
+    cursorPosition.y            = m_fieldExtents.y - cursorPosition.y; // Place origin at top-left
+    float halfScale             = 0.5f * m_renderConfig.brushParams.scale;
+    glm::vec2 topLeft(cursorPosition.x - halfScale * m_fieldExtents.x,
+                      cursorPosition.y - halfScale * m_fieldExtents.y * m_window.getAspectRatio());
+    glm::vec2 bottomRight(cursorPosition.x + halfScale * m_fieldExtents.x,
+                          cursorPosition.y + halfScale * m_fieldExtents.y * m_window.getAspectRatio());
+
+    // Ensure bounding box is within field bounds, construct and return it
+    topLeft                     = glm::max(topLeft, glm::vec2(0.0f));
+    bottomRight                 = glm::min(bottomRight, glm::vec2(m_fieldExtents.x - 1U, m_fieldExtents.y - 1U));
+    BoundingBox boundingBox     = {.topLeft = make_uint2(topLeft.x, topLeft.y),
+                                   .bottomRight = make_uint2(bottomRight.x, bottomRight.y)};
+    return boundingBox;
+}
+
+dim3 FieldManager::brushGridDims(BoundingBox boundingBox) {
+    return dim3((boundingBox.bottomRight.x - boundingBox.topLeft.x) / utils::BLOCK_SIZE.x,
+                (boundingBox.bottomRight.y - boundingBox.topLeft.y) / utils::BLOCK_SIZE.y);
 }

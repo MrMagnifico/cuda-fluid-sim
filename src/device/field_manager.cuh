@@ -8,21 +8,30 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/vec4.hpp>
 DISABLE_WARNINGS_POP()
 
+#include <framework/window.h>
 #include <render/config.h>
+
+struct BoundingBox {
+    uint2 topLeft, bottomRight;
+};
 
 class FieldManager {
     public:
-        FieldManager(const RenderConfig& renderConfig, const uint2 fieldExtents,
+        FieldManager(const RenderConfig& renderConfig, const Window &window,
+                     const uint2 fieldExtents,
                      const GLuint sourcesDensityTex, const GLuint densitiesTex,
                      const GLuint sourcesVelocityTex, const GLuint velocitiesTex);
 
         void copyFieldsToTextures();
+        void simulate();
+
+        void mouseButtonCallback(int button, int action, int mods);
         void setSourceDensity(uint2 coords, glm::vec4 val);
         void setSourceVelocity(uint2 coords, glm::vec2 val);
-        void simulate();
 
     private:
         const RenderConfig &m_renderConfig;
+        const Window &m_window;
 
         uint2 m_fieldExtents;
         uint2 m_paddedfieldExtents;
@@ -34,6 +43,9 @@ class FieldManager {
 
         void densityStep();
         void velocityStep();
+
+        BoundingBox brushBoundingBox();
+        dim3 brushGridDims(BoundingBox boundingBox);
 };
 
 
