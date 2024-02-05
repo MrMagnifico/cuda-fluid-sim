@@ -26,6 +26,11 @@ namespace utils {
     // Shitty strings.xml
     constexpr std::string_view WINDOW_TITLE = "CUDA Fluid Solver";
 
+    // Brush parameters
+    constexpr float MIN_BRUSH_SIZE              = 0.03f;
+    constexpr float MAX_BRUSH_SIZE              = 0.5f;
+    constexpr float BRUSH_SIZE_CHANGE_INCREMENT = 0.01f;
+
     // Resource directories 
     const std::filesystem::path SHADERS_DIR_PATH    = SHADERS_DIR;
     const std::filesystem::path RESOURCES_DIR_PATH  = RESOURCES_DIR;

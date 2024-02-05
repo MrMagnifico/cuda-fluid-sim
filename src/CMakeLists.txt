@@ -2,6 +2,7 @@ target_sources(FluidLib
 	PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/device/field_manager.cu"
 
+        "${CMAKE_CURRENT_LIST_DIR}/render/config.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/render/renderer.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/render/texture.cpp"
 

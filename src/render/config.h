@@ -7,7 +7,7 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/vec4.hpp>
 DISABLE_WARNINGS_POP()
 
-#include <stdint.h>
+#include <cstdint>
 
 struct SimulationParams {
     float timeStep              = 1e-2f;
@@ -17,9 +17,13 @@ struct SimulationParams {
     uint32_t projectionSimSteps = 16U; 
 };
 
+enum BrushEditMode { Densities = 0, DensitySources, Velocities, VelocitySources };
+
 struct BrushParams {
     float scale                 = 0.1f;
+    BrushEditMode brushEditMode = Densities;
     glm::vec4 densityDrawColor  = { 1.0f, 0.0f, 0.0f, 1.0f }; 
+    glm::vec2 velocityDrawValue = { 1.0f, 1.0f };
 };
 
 struct RenderConfig {
@@ -48,6 +52,8 @@ struct RenderConfig {
     bool enableHdr  = true;
     float exposure  = 1.0f;
     float gamma     = 2.2f;
+
+    void keyCallback(int key, int scancode, int action, int mods);
 };
 
 

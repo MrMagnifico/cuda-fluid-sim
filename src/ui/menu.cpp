@@ -7,6 +7,9 @@ DISABLE_WARNINGS_PUSH()
 #include <nativefiledialog/nfd.h>
 DISABLE_WARNINGS_POP()
 
+#include <utils/constants.h>
+#include <utils/magic_enum.hpp>
+
 #include <filesystem>
 #include <iostream>
 
@@ -92,8 +95,16 @@ void ui::Menu::drawHdrControls() {
 
 void ui::Menu::drawBrushTab() {
     if (ImGui::BeginTabItem("Brush")) {
-        ImGui::SliderFloat("Size", &m_renderConfig.brushParams.scale, 0.03f, 0.5f, "%.2f");
-        ImGui::ColorEdit3("Density brush colour", glm::value_ptr(m_renderConfig.brushParams.densityDrawColor));
+        // Options for which field to affect
+        constexpr auto fieldOptions = magic_enum::enum_names<BrushEditMode>();
+        std::vector<const char*> fieldOptionsPointers;
+        std::transform(std::begin(fieldOptions), std::end(fieldOptions), std::back_inserter(fieldOptionsPointers),
+            [](const auto& str) { return str.data(); });
+
+        ImGui::SliderFloat("Size", &m_renderConfig.brushParams.scale, utils::MIN_BRUSH_SIZE, utils::MAX_BRUSH_SIZE, "%.2f");
+        ImGui::Combo("Field to paint", (int*) &m_renderConfig.brushParams.brushEditMode, fieldOptionsPointers.data(), static_cast<int>(fieldOptionsPointers.size()));
+        ImGui::ColorEdit3("Density brush colour", glm::value_ptr(m_renderConfig.brushParams.densityDrawColor));\
+        ImGui::DragFloat2("Velocity brush value", glm::value_ptr(m_renderConfig.brushParams.velocityDrawValue), 0.01f, -10.0f, 10.0f, "%.2f");
         ImGui::EndTabItem();
     }
 }
