@@ -297,8 +297,33 @@ __device__ void handle_boundary(T* field, uint2 field_extents, BoundaryStrategy 
     else if (tidX == 0U && tidY == (field_extents.y + 1U))                     { field[offset] = (0.5f * field[rightIdx]) + (0.5f * field[upIdx]); }    // Bottom-left
     else if (tidX == (field_extents.x + 1U) && tidY == (field_extents.y + 1U)) { field[offset] = (0.5f * field[leftIdx]) + (0.5f * field[upIdx]); }     // Bottom-right
     // Edge values depend on chosen strategy
-    else if (tidX == 0U)                     { field[offset] = bs == Reverse    ? -field[rightIdx]  : field[rightIdx]; }    // Left edge
-    else if (tidX == (field_extents.x + 1U)) { field[offset] = bs == Reverse    ? -field[leftIdx]   : field[leftIdx]; }     // Right edge
-    else if (tidY == 0U)                     { field[offset] = bs == Reverse    ? -field[downIdx]   : field[downIdx]; }     // Top edge
-    else if (tidY == (field_extents.y + 1U)) { field[offset] = bs == Reverse    ? -field[upIdx]     : field[upIdx]; }       // Bottom edge
+    else if (tidX == 0U) {                          // Left edge
+        T newVal        = field[rightIdx];
+        if (bs == Reverse) { newVal = handle_reverse(newVal, ReverseAxis::X); }
+        field[offset]   = newVal;
+    } else if (tidX == (field_extents.x + 1U)) {    // Right edge
+        T newVal        = field[leftIdx];
+        if (bs == Reverse) { newVal = handle_reverse(newVal, ReverseAxis::X); }
+        field[offset]   = newVal;
+    } else if (tidY == 0U) {                        // Top edge
+        T newVal        = field[downIdx];
+        if (bs == Reverse) { newVal = handle_reverse(newVal, ReverseAxis::Y); }
+        field[offset]   = newVal;
+    } else if (tidY == (field_extents.y + 1U)) {    // Bottom edge
+        T newVal        = field[upIdx];
+        if (bs == Reverse) { newVal = handle_reverse(newVal, ReverseAxis::Y); }
+        field[offset]   = newVal;
+    }
+}
+
+__device__ float handle_reverse(float value, ReverseAxis axis) { return -value; }
+
+__device__ glm::vec2 handle_reverse(glm::vec2 value, ReverseAxis axis) {
+    value[axis] = -value[axis];
+    return value;
+}
+
+__device__ glm::vec3 handle_reverse(glm::vec3 value, ReverseAxis axis) {
+    value[axis] = -value[axis];
+    return value;
 }

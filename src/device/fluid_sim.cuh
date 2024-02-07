@@ -12,6 +12,9 @@ DISABLE_WARNINGS_POP()
 enum BoundaryStrategy { Conserve = 0,   // Use same sign as interior neighbour
                         Reverse };      // Reverse sign of interior neighbour
 
+// Indicates which axis should be reverse when handling edge boundaries 
+enum ReverseAxis { X = 0, Y = 1 };
+
 // Offset and coordinates for indexing into global memory
 struct GlobalIndexing {
     unsigned int idX, idY, offset;                              // Coordinates and index into global field memory of current thread
@@ -150,6 +153,12 @@ __device__ StatusFlags generate_status_flags(unsigned int globalIdX, unsigned in
 template<typename T>
 __device__ void global_to_shared(T* shared_mem, T* first_field, T* second_field,
                                  const StatusFlags& status_flags, const GlobalIndexing& global, const SharedIndexing& shared);
+
+__device__ float handle_reverse(float value, ReverseAxis axis);
+
+__device__ glm::vec2 handle_reverse(glm::vec2 value, ReverseAxis axis);
+
+__device__ glm::vec3 handle_reverse(glm::vec3 value, ReverseAxis axis);
 
 
 #endif

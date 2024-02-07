@@ -186,7 +186,7 @@ BoundingBox FieldManager::brushBoundingBox() {
     glm::vec2 bottomRight(cursorPosition.x + halfScale * m_fieldExtents.x,
                           cursorPosition.y + halfScale * m_fieldExtents.y * m_window.getAspectRatio());
 
-    // Ensure bounding box is within field bounds, construct and return it
+    // Ensure bounding box is within field bounds, construct, and return it
     topLeft                     = glm::max(topLeft, glm::vec2(0.0f));
     bottomRight                 = glm::min(bottomRight, glm::vec2(m_fieldExtents.x - 1U, m_fieldExtents.y - 1U));
     BoundingBox boundingBox     = {.topLeft = make_uint2(topLeft.x, topLeft.y),

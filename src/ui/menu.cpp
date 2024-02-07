@@ -111,8 +111,8 @@ void ui::Menu::drawBrushTab() {
 
         ImGui::SliderFloat("Size", &m_renderConfig.brushParams.scale, utils::MIN_BRUSH_SIZE, utils::MAX_BRUSH_SIZE, "%.2f");
         ImGui::Combo("Field to paint", (int*) &m_renderConfig.brushParams.brushEditMode, fieldOptionsPointers.data(), static_cast<int>(fieldOptionsPointers.size()));
-        ImGui::ColorEdit3("Density brush colour", glm::value_ptr(m_renderConfig.brushParams.densityDrawColor));\
-        ImGui::DragFloat2("Velocity brush value", glm::value_ptr(m_renderConfig.brushParams.velocityDrawValue), 0.01f, -10.0f, 10.0f, "%.2f");
+        ImGui::ColorEdit3("Density brush - RGB", glm::value_ptr(m_renderConfig.brushParams.densityDrawColor));\
+        ImGui::DragFloat2("Velocity brush - XY", glm::value_ptr(m_renderConfig.brushParams.velocityDrawValue), 0.01f, -10.0f, 10.0f, "%.2f");
         ImGui::SliderFloat("Eraser intensity", &m_renderConfig.brushParams.eraseIntensity, 0.0f, 1.0f, "%.2f");
         ImGui::EndTabItem();
     }
