@@ -22,7 +22,7 @@ layout(location = 0) in vec2 bufferCoords;
 layout(location = 0) out vec4 fragColor;
 
 #define PI 3.1415926535897932384626433832795
-#define MIN_X 1e-5
+#define MIN_X 1e-6
 
 vec3 hsvToRgb(vec3 hsv) {
     float h = hsv.x;
@@ -47,12 +47,12 @@ vec3 hsvToRgb(vec3 hsv) {
 // Map the angle of the velocity to a hue and its magnitude to a value in HSV.
 // Saturation is assumed to be maximal
 vec3 velocityVisualisation(vec2 velocity) {
-    velocity.y      = -velocity.y;                              // Y grows in the downward direction in CUDA, so we reflect that
-    if (abs(velocity.x) < MIN_X) { velocity.x = MIN_X; }        // Avoid division by zero errors
+    velocity.y      = -velocity.y;                                                      // Y grows in the downward direction in CUDA, so we reflect that
+    if (abs(velocity.x) < MIN_X) { velocity.x = velocity.x <= 0.0 ? -MIN_X : MIN_X; }   // Avoid division by zero errors
     float angle     = atan(velocity.y, velocity.x);
     float magnitude = length(velocity);
-    float hue       = degrees(angle) + 180.0;                   // Convert from [-PI, PI] to [0, 360]
-    vec3 hsv        = vec3(hue, 1.0, magnitude);                // Use magnitude as unbounded value (tone-mapping should take care of >1 values)
+    float hue       = degrees(angle) + 180.0;                                           // Convert from [-PI, PI] to [0, 360]
+    vec3 hsv        = vec3(hue, 1.0, magnitude);                                        // Use magnitude as unbounded value (tone-mapping should take care of >1 values)
     return hsvToRgb(hsv);
 }
 

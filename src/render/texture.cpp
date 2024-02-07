@@ -4,8 +4,10 @@
 DISABLE_WARNINGS_PUSH()
 #include <fmt/format.h>
 DISABLE_WARNINGS_POP()
+
 #include <framework/image.h>
 
+#include <exception>
 #include <iostream>
 
 void Texture::bind(GLint textureSlot) const {

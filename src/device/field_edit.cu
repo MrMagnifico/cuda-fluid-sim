@@ -4,7 +4,6 @@ DISABLE_WARNINGS_PUSH()
 #include <glm/common.hpp>
 DISABLE_WARNINGS_POP()
 
-#include <utils/misc_utils.hpp>
 
 template<typename T>
 __global__ void set_source(T* sources, uint2 coords, T val, uint2 field_extents) {

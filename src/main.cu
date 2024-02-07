@@ -9,11 +9,11 @@ DISABLE_WARNINGS_POP()
 #include <framework/window.h>
 
 #include <device/field_manager.cuh>
-#include <device/fluid_sim.cuh>
+#include <device/field_edit.cuh>
 #include <render/config.h>
 #include <render/renderer.h>
 #include <render/texture.h>
-#include <ui/callbacks.hpp>
+#include <ui/debug_callbacks.hpp>
 #include <ui/menu.h>
 #include <utils/constants.h>
 #include <utils/cuda_utils.cuh>
@@ -37,20 +37,15 @@ int main(int argc, char* argv[]) {
     // Set initial sources
     for (unsigned int i = 0U; i < 50U; i++) {
         for (unsigned int j = 0U; j < 50U; j++) {
-            m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec4(0.2f, 0.0f, 0.0f, 0.0f));
-            m_fieldManager.setSourceDensity(make_uint2(600U + i, 400U + j), glm::vec4(0.0f, 0.2f, 0.0f, 0.0f));
-            m_fieldManager.setSourceDensity(make_uint2(500U + i, 400U + j), glm::vec4(0.0f, 0.0f, 0.2f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f));
+            m_fieldManager.setSourceDensity(make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f));
             m_fieldManager.setSourceVelocity(make_uint2(300U + i, 300U + j), glm::vec2(0.2f, 0.0f));
             m_fieldManager.setSourceVelocity(make_uint2(600U + i, 400U + j), glm::vec2(0.0f, 0.2f));
             m_fieldManager.setSourceVelocity(make_uint2(500U + i, 400U + j), glm::vec2(0.2f, 0.2f));
         }
     }
     CUDA_ERROR(cudaDeviceSynchronize());
-
-    // Register debug UI callbacks
-    m_window.registerKeyCallback(ui::keyCallback);
-    m_window.registerMouseMoveCallback(ui::onMouseMove);
-    m_window.registerMouseButtonCallback(ui::mouseButtonCallback);
 
     // Register functional UI callbacks
     // Lambda to bind relevant objects in callback's scope. Fuck me

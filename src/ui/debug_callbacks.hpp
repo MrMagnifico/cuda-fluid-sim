@@ -1,5 +1,5 @@
-#ifndef _CALLBACKS_HPP_
-#define _CALLBACKS_HPP_
+#ifndef _DEBUG_CALLBACKS_HPP_
+#define _DEBUG_CALLBACKS_HPP_
 
 DISABLE_WARNINGS_PUSH()
 #include <GLFW/glfw3.h>

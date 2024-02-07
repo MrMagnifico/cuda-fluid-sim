@@ -6,7 +6,6 @@ DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 DISABLE_WARNINGS_POP()
 
-#include <exception>
 #include <filesystem>
 #include <memory>
 #include <vector>

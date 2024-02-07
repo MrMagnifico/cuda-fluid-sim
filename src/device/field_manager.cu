@@ -29,7 +29,7 @@ FieldManager::FieldManager(const RenderConfig& renderConfig, const Window &windo
     m_gridDims              = dim3((m_paddedfieldExtents.x / utils::BLOCK_SIZE.x) + 1U, (m_paddedfieldExtents.y / utils::BLOCK_SIZE.y) + 1U);   // Grid dimensions needed for workload distribution
 
     // Allocate and zero initialise memory for fields
-    std::array<glm::vec4**, utils::FIELDS_PER_TYPE> fieldsDensity   = { &m_densitySources, &m_densities, &m_densitiesPrev };
+    std::array<glm::vec3**, utils::FIELDS_PER_TYPE> fieldsDensity   = { &m_densitySources, &m_densities, &m_densitiesPrev };
     std::array<glm::vec2**, utils::FIELDS_PER_TYPE> fieldsVelocity  = { &m_velocitySources, &m_velocities, &m_velocitiesPrev };
     size_t fieldSizeDensity                                         = (m_paddedfieldExtents.x) * (m_paddedfieldExtents.y) * sizeof(glm::vec4); // Account for boundaries
     size_t fieldSizeVelocity                                        = (m_paddedfieldExtents.x) * (m_paddedfieldExtents.y) * sizeof(glm::vec2); // Account for boundaries
@@ -111,12 +111,12 @@ void FieldManager::applyBrushErase() {
     dim3 brushGrid      = brushGridDims(brushBB);
     switch (m_renderConfig.brushParams.brushEditMode) {
         case Densities: {
-            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densities, glm::vec4(m_renderConfig.brushParams.eraseIntensity),
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densities, glm::vec3(m_renderConfig.brushParams.eraseIntensity),
                                                            m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
                                                            Remove, true);
         } break;
         case DensitySources: {
-            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densitySources, glm::vec4(m_renderConfig.brushParams.eraseIntensity),
+            update_field<<<brushGrid, utils::BLOCK_SIZE>>>(m_densitySources, glm::vec3(m_renderConfig.brushParams.eraseIntensity),
                                                            m_fieldExtents, brushBB.topLeft, brushBB.bottomRight,
                                                            Remove, true);
         } break;
@@ -133,7 +133,7 @@ void FieldManager::applyBrushErase() {
     }
 }
 
-void FieldManager::setSourceDensity(uint2 coords, glm::vec4 val) { set_source<<<1, 1>>>(m_densitySources, coords, val, m_paddedfieldExtents); }
+void FieldManager::setSourceDensity(uint2 coords, glm::vec3 val) { set_source<<<1, 1>>>(m_densitySources, coords, val, m_paddedfieldExtents); }
 
 void FieldManager::setSourceVelocity(uint2 coords, glm::vec2 val) { set_source<<<1, 1>>>(m_velocitySources, coords, val, m_paddedfieldExtents); }
 
@@ -151,8 +151,7 @@ void FieldManager::densityStep() {
     }
     if (m_renderConfig.densityAdvect) {
         std::swap(m_densities,      m_densitiesPrev);
-        advect<glm::vec4, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_densitiesPrev, m_densities, m_velocities, m_fieldExtents,
-                                                                        Conserve, m_renderConfig.simulationParams);
+        advect<<<m_gridDims, utils::BLOCK_SIZE>>>(m_densitiesPrev, m_densities, m_velocities, m_fieldExtents, Conserve, m_renderConfig.simulationParams);
     }
 }
 
@@ -169,8 +168,7 @@ void FieldManager::velocityStep() {
     }
     if (m_renderConfig.velocityAdvect) {
         std::swap(m_velocities, m_velocitiesPrev);
-        advect<glm::vec2, glm::vec2><<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocitiesPrev, m_velocities, m_velocitiesPrev, m_fieldExtents, 
-                                                                        Reverse, m_renderConfig.simulationParams);
+        advect<<<m_gridDims, utils::BLOCK_SIZE>>>(m_velocitiesPrev, m_velocities, m_velocitiesPrev, m_fieldExtents, Reverse, m_renderConfig.simulationParams);
         if (m_renderConfig.velocityProject) {
             size_t sharedMemProjectSize = (utils::BLOCK_SIZE.x + 2UL) * (utils::BLOCK_SIZE.y + 2UL) * sizeof(float) * 2UL; // Account for ghost cells and the fact that we store TWO fields (derivative and projection)
             project<<<m_gridDims, utils::BLOCK_SIZE, sharedMemProjectSize>>>(m_velocities, m_fieldExtents, m_renderConfig.simulationParams);

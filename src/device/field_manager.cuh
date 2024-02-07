@@ -5,7 +5,7 @@
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 #include <glm/vec2.hpp>
-#include <glm/vec4.hpp>
+#include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
 
 #include <framework/window.h>
@@ -27,7 +27,7 @@ class FieldManager {
 
         void mouseButtonCallback(int button, int action, int mods);
         void mouseMoveCallback(glm::vec2 cursorPos);
-        void setSourceDensity(uint2 coords, glm::vec4 val);
+        void setSourceDensity(uint2 coords, glm::vec3 val);
         void setSourceVelocity(uint2 coords, glm::vec2 val);
 
     private:
@@ -39,7 +39,7 @@ class FieldManager {
         dim3 m_gridDims;
 
         cudaGraphicsResource_t m_densitiesResource, m_sourcesDensityResource, m_velocitiesResource, m_sourcesVelocityResource;
-        glm::vec4 *m_densitySources, *m_densities, *m_densitiesPrev;
+        glm::vec3 *m_densitySources, *m_densities, *m_densitiesPrev;
         glm::vec2 *m_velocitySources, *m_velocities, *m_velocitiesPrev;
 
         void densityStep();

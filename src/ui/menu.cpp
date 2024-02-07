@@ -5,14 +5,11 @@ DISABLE_WARNINGS_PUSH()
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui/imgui.h>
-#include <nativefiledialog/nfd.h>
 DISABLE_WARNINGS_POP()
 
 #include <utils/constants.h>
 #include <utils/magic_enum.hpp>
 
-#include <filesystem>
-#include <iostream>
 
 ui::Menu::Menu(RenderConfig& renderConfig)
     : m_renderConfig(renderConfig)

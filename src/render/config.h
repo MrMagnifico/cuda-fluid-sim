@@ -4,7 +4,7 @@
 #include <framework/disable_all_warnings.h>
 DISABLE_WARNINGS_PUSH()
 #include <glm/vec2.hpp>
-#include <glm/vec4.hpp>
+#include <glm/vec3.hpp>
 DISABLE_WARNINGS_POP()
 
 #include <cstdint>
@@ -22,7 +22,7 @@ enum BrushEditMode { Densities = 0, DensitySources, Velocities, VelocitySources 
 struct BrushParams {
     float scale                 = 0.1f;
     BrushEditMode brushEditMode = Densities;
-    glm::vec4 densityDrawColor  = { 1.0f, 0.0f, 0.0f, 1.0f }; 
+    glm::vec3 densityDrawColor  = { 1.0f, 0.0f, 0.0f }; 
     glm::vec2 velocityDrawValue = { 1.0f, 1.0f };
     float eraseIntensity        = 0.1f;
 };
@@ -35,13 +35,13 @@ struct RenderConfig {
     bool renderVelocities       = false;
 
     // Simulation step toggles
-    bool densityAddSources  = false;
-    bool densityDiffuse     = false;
-    bool densityAdvect      = false;
-    bool velocityAddSources = false;
-    bool velocityDiffuse    = false;
-    bool velocityAdvect     = false;
-    bool velocityProject    = false;
+    bool densityAddSources  = true;
+    bool densityDiffuse     = true;
+    bool densityAdvect      = true;
+    bool velocityAddSources = true;
+    bool velocityDiffuse    = true;
+    bool velocityAdvect     = true;
+    bool velocityProject    = true;
 
     // Simulation parameters
     SimulationParams simulationParams;
