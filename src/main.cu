@@ -18,6 +18,22 @@ DISABLE_WARNINGS_POP()
 #include <utils/constants.h>
 #include <utils/cuda_utils.cuh>
 
+#include <iostream>
+
+void printHelpText() {
+    std::cout   << "=== Mouse Controls ==="                             << std::endl
+                << "- Density brushes"                                  << std::endl
+                << "\tLeft-click: Add selected color"                   << std::endl
+                << "\tRight-click Erase"                                << std::endl
+                << "- Velocity brushes"                                 << std::endl
+                << "\tLeft-click: Add selected velocity"                << std::endl
+                << "\tRight-click: Add inverse of selected velocity"    << std::endl
+                << "=== Keyboard Controls ==="                          << std::endl
+                << "[: Decrease brush size"                             << std::endl
+                << "]: Increase brush size"                             << std::endl
+                << "Tab: Cycle between brushes"                         << std::endl;
+}
+
 
 int main(int argc, char* argv[]) {
     // Init core object(s)
@@ -56,6 +72,8 @@ int main(int argc, char* argv[]) {
     // Enable additive blending based on source (incoming) alpha to draw brush billboard
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    printHelpText();
 
     // Main loop
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
