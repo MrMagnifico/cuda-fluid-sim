@@ -12,7 +12,7 @@ DISABLE_WARNINGS_POP()
 namespace utils {
     // CUDA parameters
     #ifdef __CUDACC__
-    const dim3 BLOCK_SIZE               = { 4U, 8U, 1U };   // Number of threads per block
+    const dim3 BLOCK_SIZE               = { 32U, 32U, 1U };   // Number of threads per block
     constexpr size_t FIELDS_PER_TYPE    = 3UL;              // Number of fields for each type of field (density, velocity): {current, previous, sources}
     #endif
 
