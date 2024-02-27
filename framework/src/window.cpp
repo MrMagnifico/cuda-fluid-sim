@@ -80,6 +80,7 @@ Window::Window(std::string_view title, const glm::ivec2& windowSize, OpenGLVersi
     std::cout << "Window content scale: " << xScale << ", " << yScale << std::endl;
 
     glfwGetWindowSize(m_pWindow, &m_windowSize.x, &m_windowSize.y);
+    glfwGetFramebufferSize(m_pWindow, &m_framebufferSize.x, &m_framebufferSize.y);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         glfwTerminate();
@@ -139,6 +140,7 @@ Window::Window(std::string_view title, const glm::ivec2& windowSize, OpenGLVersi
     glfwSetCursorPosCallback(m_pWindow, mouseMoveCallback);
     glfwSetScrollCallback(m_pWindow, scrollCallback);
     glfwSetWindowSizeCallback(m_pWindow, windowSizeCallback);
+    glfwSetFramebufferSizeCallback(m_pWindow, framebufferSizeCallback);
 }
 
 Window::~Window()
@@ -229,6 +231,11 @@ void Window::registerWindowResizeCallback(WindowResizeCallback&& callback)
     m_windowResizeCallbacks.push_back(std::move(callback));
 }
 
+void Window::registerFramebufferResizeCallback(FramebufferResizeCallback&& callback)
+{
+    m_framebufferResizeCallbacks.push_back(std::move(callback));
+}
+
 void Window::registerMouseMoveCallback(MouseMoveCallback&& callback)
 {
     m_mouseMoveCallbacks.push_back(std::move(callback));
@@ -300,6 +307,17 @@ void Window::windowSizeCallback(GLFWwindow* window, int width, int height)
     pThisWindow->m_windowSize = glm::ivec2 { width, height };
 
     for (const auto& callback : pThisWindow->m_windowResizeCallbacks)
+        callback(glm::ivec2(width, height));
+}
+
+void Window::framebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+    Window* pThisWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    pThisWindow->m_framebufferSize = glm::ivec2 { width, height };
+
+    glViewport(0, 0, width, height); // Resize OpenGL viewport to fit new framebuffer size
+
+    for (const auto& callback : pThisWindow->m_framebufferResizeCallbacks)
         callback(glm::ivec2(width, height));
 }
 

@@ -22,6 +22,12 @@ class FieldManager {
                      const GLuint sourcesDensityTex, const GLuint densitiesTex,
                      const GLuint sourcesVelocityTex, const GLuint velocitiesTex);
 
+        void initFields();
+        void registerGlTextures(const GLuint sourcesDensityTex, const GLuint densitiesTex,
+                                const GLuint sourcesVelocityTex, const GLuint velocitiesTex);
+        void unregisterGlTextures();
+        
+        void resizeFields(const uint2 fieldExtents);
         void copyFieldsToTextures();
         void simulate();
 
@@ -41,6 +47,7 @@ class FieldManager {
         cudaGraphicsResource_t m_densitiesResource, m_sourcesDensityResource, m_velocitiesResource, m_sourcesVelocityResource;
         glm::vec3 *m_densitySources, *m_densities, *m_densitiesPrev;
         glm::vec2 *m_velocitySources, *m_velocities, *m_velocitiesPrev;
+
 
         void densityStep();
         void velocityStep();

@@ -24,8 +24,13 @@ FieldManager::FieldManager(const RenderConfig& renderConfig, const Window &windo
     : m_fieldExtents(fieldExtents)
     , m_renderConfig(renderConfig)
     , m_window(window) {
+    initFields();                                                                           // Initialise memory needed for fields
+    registerGlTextures(sourcesDensityTex, densitiesTex, sourcesVelocityTex, velocitiesTex); // Create OpenGL textures resource handles
+}
+
+void FieldManager::initFields() {
     // Calculate memory sizes and dimensions
-    m_paddedfieldExtents    = uint2(fieldExtents.x + 2UL, fieldExtents.y + 2UL);
+    m_paddedfieldExtents    = uint2(m_fieldExtents.x + 2UL, m_fieldExtents.y + 2UL);
     m_gridDims              = dim3((m_paddedfieldExtents.x / utils::BLOCK_SIZE.x) + 1U, (m_paddedfieldExtents.y / utils::BLOCK_SIZE.y) + 1U);   // Grid dimensions needed for workload distribution
 
     // Allocate and zero initialise memory for fields
@@ -41,12 +46,43 @@ FieldManager::FieldManager(const RenderConfig& renderConfig, const Window &windo
         CUDA_ERROR(cudaMemset(*densityField, 0, fieldSizeDensity));
         CUDA_ERROR(cudaMemset(*velocityField, 0, fieldSizeVelocity));
     }
+}
 
-    // Create OpenGL textures resource handles
+void FieldManager::registerGlTextures(const GLuint sourcesDensityTex, const GLuint densitiesTex,
+                                      const GLuint sourcesVelocityTex, const GLuint velocitiesTex) {
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_sourcesDensityResource,   sourcesDensityTex,  GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_densitiesResource,        densitiesTex,       GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_sourcesVelocityResource,  sourcesVelocityTex, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
     CUDA_ERROR(cudaGraphicsGLRegisterImage(&m_velocitiesResource,       velocitiesTex,      GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
+}
+
+void FieldManager::unregisterGlTextures() {
+    CUDA_ERROR(cudaGraphicsUnregisterResource(m_sourcesDensityResource));
+    CUDA_ERROR(cudaGraphicsUnregisterResource(m_densitiesResource));
+    CUDA_ERROR(cudaGraphicsUnregisterResource(m_sourcesVelocityResource));
+    CUDA_ERROR(cudaGraphicsUnregisterResource(m_velocitiesResource));
+}
+
+void FieldManager::resizeFields(const uint2 fieldExtents) {
+    // Fetch old field pointers and dimensions
+    const uint2 oldExtents = m_fieldExtents;
+    glm::vec3 *oldDensitySources = m_densitySources,    *oldDensities = m_densities,    *oldDensitiesPrev = m_densitiesPrev;
+    glm::vec2 *oldVelocitySources = m_velocitySources,  *oldVelocities = m_velocities,  *oldVelocitiesPrev = m_velocitiesPrev;
+
+    // Create new fields and copy over data from old sources and fields that is within the new bounds
+    CUDA_ERROR(cudaDeviceSynchronize()); // Ensure all queued work is done before proceeding
+    m_fieldExtents = fieldExtents;
+    initFields();
+    copyOldField<<<m_gridDims, utils::BLOCK_SIZE>>>(oldDensitySources, m_densitySources, oldExtents, m_fieldExtents);
+    copyOldField<<<m_gridDims, utils::BLOCK_SIZE>>>(oldDensities, m_densities, oldExtents, m_fieldExtents);
+    copyOldField<<<m_gridDims, utils::BLOCK_SIZE>>>(oldVelocitySources, m_velocitySources, oldExtents, m_fieldExtents);
+    copyOldField<<<m_gridDims, utils::BLOCK_SIZE>>>(oldVelocities, m_velocities, oldExtents, m_fieldExtents);
+    CUDA_ERROR(cudaDeviceSynchronize()); // Ensure copies are done before proceeding
+
+    // Free old fields memory
+    std::array<void*, 6UL> oldPtrs = { oldDensitySources, oldDensities, oldDensitiesPrev,
+                                       oldVelocitySources, oldVelocities, oldVelocitiesPrev };
+    for (void* ptr : oldPtrs) { CUDA_ERROR(cudaFree(ptr)); }
 }
 
 void FieldManager::copyFieldsToTextures() {

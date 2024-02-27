@@ -40,6 +40,8 @@ public:
 	void registerScrollCallback(ScrollCallback&&);
 	using WindowResizeCallback = std::function<void(const glm::ivec2& size)>;
 	void registerWindowResizeCallback(WindowResizeCallback&&);
+	using FramebufferResizeCallback = std::function<void(const glm::ivec2& size)>;
+	void registerFramebufferResizeCallback(FramebufferResizeCallback&&);
 
 	bool isKeyPressed(int key) const;
 	bool isMouseButtonPressed(int button) const;
@@ -66,10 +68,12 @@ private:
 	static void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos);
 	static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 	static void windowSizeCallback(GLFWwindow* window, int width, int height);
+	static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 
 private:
 	GLFWwindow* m_pWindow;
 	glm::ivec2 m_windowSize;
+	glm::ivec2 m_framebufferSize;
 	float m_dpiScalingFactor = 1.0f;
 	const OpenGLVersion m_glVersion;
 
@@ -79,4 +83,5 @@ private:
 	std::vector<ScrollCallback> m_scrollCallbacks;
 	std::vector<MouseMoveCallback> m_mouseMoveCallbacks;
 	std::vector<WindowResizeCallback> m_windowResizeCallbacks;
+	std::vector<FramebufferResizeCallback> m_framebufferResizeCallbacks;
 };

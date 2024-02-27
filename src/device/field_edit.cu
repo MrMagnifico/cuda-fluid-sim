@@ -34,3 +34,19 @@ __global__ void update_field(T* field, T value, uint2 field_extents, uint2 top_l
         }
     }
 }
+
+template<typename T>
+__global__ void copyOldField(T* old_field, T* new_field, uint2 old_field_extents, uint2 new_field_extents) {
+    unsigned int threadIdX  = threadIdx.x + blockIdx.x * blockDim.x;
+    unsigned int threadIdY  = threadIdx.y + blockIdx.y * blockDim.y;
+    uint2 smallestExtents   = make_uint2(min(old_field_extents.x, new_field_extents.x),
+                                         min(old_field_extents.y, new_field_extents.y));
+
+    // Only copy over values if the thread is operating on an interior cell within the smaller of the two bounds
+    if (1U <= threadIdX && threadIdX <= smallestExtents.x &&
+        1U <= threadIdY && threadIdY <= smallestExtents.y) {
+        unsigned int oldFieldOffset = threadIdX + threadIdY * (old_field_extents.x + 2U);
+        unsigned int newFieldOffset = threadIdX + threadIdY * (new_field_extents.x + 2U);
+        new_field[newFieldOffset]   = old_field[oldFieldOffset];
+    }
+}

@@ -12,8 +12,8 @@ DISABLE_WARNINGS_POP()
 #include <array>
 
 Renderer::Renderer(const RenderConfig& renderConfig, const Window& window,
-                             std::weak_ptr<const Texture> brushTex,
-                             unsigned int fieldWidth, unsigned int fieldHeight)
+                   std::weak_ptr<const Texture> brushTex,
+                   unsigned int fieldWidth, unsigned int fieldHeight)
     : m_renderConfig(renderConfig)
     , m_window(window)
     , m_brushTex(brushTex)
@@ -22,10 +22,7 @@ Renderer::Renderer(const RenderConfig& renderConfig, const Window& window,
     initTextures();
 }
 
-Renderer::~Renderer() {
-    std::array<GLuint, 4UL> textures = { m_sourcesDensityTex, m_densitiesTex, m_sourcesVelocityTex, m_velocitiesTex };
-    glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
-}
+Renderer::~Renderer() { destroyTextures(); }
 
 void Renderer::initShaderPrograms() {
     ShaderBuilder quadHdrBuilder;
@@ -49,6 +46,17 @@ void Renderer::initTextures() {
         glBindTexture(GL_TEXTURE_2D, *texture);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Renderer::destroyTextures() {
+    std::array<GLuint, 4UL> textures = { m_sourcesDensityTex, m_densitiesTex, m_sourcesVelocityTex, m_velocitiesTex };
+    glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
+}
+
+void Renderer::resizeTextures(unsigned int fieldWidth, unsigned int fieldHeight) {
+    destroyTextures();
+    m_fieldDims = glm::uvec2(fieldWidth, fieldHeight);
+    initTextures();
 }
 
 void Renderer::renderFields() {

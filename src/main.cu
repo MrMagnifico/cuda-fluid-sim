@@ -13,7 +13,6 @@ DISABLE_WARNINGS_POP()
 #include <render/config.h>
 #include <render/renderer.h>
 #include <render/texture.h>
-#include <ui/debug_callbacks.hpp>
 #include <ui/menu.h>
 #include <utils/constants.h>
 #include <utils/cuda_utils.cuh>
@@ -34,7 +33,6 @@ void printHelpText() {
                 << "Tab: Cycle between brushes"                         << std::endl;
 }
 
-
 int main(int argc, char* argv[]) {
     // Init core object(s)
     const uint2 fieldExtents = { utils::INITIAL_WIDTH, utils::INITIAL_HEIGHT };
@@ -49,25 +47,20 @@ int main(int argc, char* argv[]) {
                                 m_fieldRenderer.getSourcesDensityTex(),     m_fieldRenderer.getDensitiesTex(),
                                 m_fieldRenderer.getSourcesVelocityTex(),    m_fieldRenderer.getVelocitiesTex());
 
-
-    // Set initial sources
-    for (unsigned int i = 0U; i < 50U; i++) {
-        for (unsigned int j = 0U; j < 50U; j++) {
-            m_fieldManager.setSourceDensity(make_uint2(300U + i, 300U + j), glm::vec3(0.2f, 0.0f, 0.0f));
-            m_fieldManager.setSourceDensity(make_uint2(600U + i, 400U + j), glm::vec3(0.0f, 0.2f, 0.0f));
-            m_fieldManager.setSourceDensity(make_uint2(500U + i, 400U + j), glm::vec3(0.0f, 0.0f, 0.2f));
-            m_fieldManager.setSourceVelocity(make_uint2(300U + i, 300U + j), glm::vec2(0.2f, 0.0f));
-            m_fieldManager.setSourceVelocity(make_uint2(600U + i, 400U + j), glm::vec2(0.0f, 0.2f));
-            m_fieldManager.setSourceVelocity(make_uint2(500U + i, 400U + j), glm::vec2(0.2f, 0.2f));
-        }
-    }
-    CUDA_ERROR(cudaDeviceSynchronize());
-
-    // Register functional UI callbacks
-    // Lambda to bind relevant objects in callback's scope. Fuck me
+    // Register UI callbacks
+    // Lambda to bind relevant objects in callbacks' scope. Fuck me
     m_window.registerKeyCallback([&m_renderConfig](int key, int scancode, int action, int mods) { m_renderConfig.keyCallback(key, scancode, action, mods); });
     m_window.registerMouseMoveCallback([&m_fieldManager](glm::vec2 cursorPos) { m_fieldManager.mouseMoveCallback(cursorPos); });
     m_window.registerMouseButtonCallback([&m_fieldManager](int button, int action, int mods) { m_fieldManager.mouseButtonCallback(button, action, mods); });
+
+    // Resize renderer field textures and field manager field buffers on window resize
+    m_window.registerFramebufferResizeCallback([&m_fieldRenderer, &m_fieldManager](const glm::ivec2& size) {
+        m_fieldManager.unregisterGlTextures();
+        m_fieldRenderer.resizeTextures(size.x, size.y);
+        m_fieldManager.registerGlTextures(m_fieldRenderer.getSourcesDensityTex(),     m_fieldRenderer.getDensitiesTex(),
+                                          m_fieldRenderer.getSourcesVelocityTex(),    m_fieldRenderer.getVelocitiesTex());
+    });
+    m_window.registerFramebufferResizeCallback([&m_fieldManager](const glm::ivec2& size) { m_fieldManager.resizeFields(make_uint2(size.x, size.y)); });
 
     // Enable additive blending based on source (incoming) alpha to draw brush billboard
     glEnable(GL_BLEND);
@@ -100,7 +93,7 @@ int main(int argc, char* argv[]) {
         // Draw UI
         m_menu.draw();
 
-        // Processes input and swaps the window buffer
+        // Process input and swap the window buffer
         m_window.swapBuffers();
 
         // Display FPS in window title

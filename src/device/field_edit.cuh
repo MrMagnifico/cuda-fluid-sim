@@ -17,4 +17,7 @@ template<typename T>
 __global__ void update_field(T* field, T value, uint2 field_extents, uint2 top_left, uint2 bottom_right,
                              UpdateType update_type, bool clampToZero);
 
+template<typename T>
+__global__ void copyOldField(T* old_field, T* new_field, uint2 old_field_extents, uint2 new_field_extents);
+
 #endif

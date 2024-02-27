@@ -23,6 +23,7 @@ class Renderer {
 
         void renderFields();
         void renderBrush();
+        void resizeTextures(unsigned int fieldWidth, unsigned int fieldHeight);
 
         GLuint getSourcesDensityTex() const     { return m_sourcesDensityTex; }
         GLuint getDensitiesTex() const          { return m_densitiesTex; }
@@ -40,6 +41,7 @@ class Renderer {
 
         void initShaderPrograms();
         void initTextures();
+        void destroyTextures();
 };
 
 
